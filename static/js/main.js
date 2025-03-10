@@ -3,6 +3,11 @@
  * Handles client-side functionality for the SyslogManager application.
  */
 
+// Add pagination variables
+let currentPage = 1;
+let totalPages = 1;
+let currentSearchParams = {};
+
 $(document).ready(function() {
     // Setup CSRF token for all AJAX requests
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
@@ -239,53 +244,175 @@ $(document).ready(function() {
     });
 
     // Handle investigate form submission
-    $('#investigateForm').on('submit', function(e) {
-        e.preventDefault();
-        
-        const sourceId = $('#investigateSourceId').val();
-        const timeRange = $('#timeRange').data('daterangepicker');
-        
-        const startTime = timeRange.startDate.format('YYYY-MM-DD HH:mm:ss');
-        const endTime = timeRange.endDate.format('YYYY-MM-DD HH:mm:ss');
-        
-        // Show loading indicator
-        logsTable.clear().draw();
-        $('#logsTable tbody').html('<tr><td colspan="4" class="text-center">Loading logs...</td></tr>');
-        
-        // Fetch logs
-        $.ajax({
-            url: '/api/investigate/' + sourceId,
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                start: startTime,
-                end: endTime
-            }),
-            success: function(response) {
-                if (response.status === 'success') {
-                    // Load data into DataTable
-                    logsTable.clear();
+	
+
+	$('#investigateForm').on('submit', function(e) {
+		e.preventDefault();
+		
+		const sourceId = $('#investigateSourceId').val();
+		const timeRange = $('#timeRange').data('daterangepicker');
+		
+		const startTime = timeRange.startDate.format('YYYY-MM-DD HH:mm:ss');
+		const endTime = timeRange.endDate.format('YYYY-MM-DD HH:mm:ss');
+		
+		// Save search parameters for pagination
+		currentSearchParams = {
+			start: startTime,
+			end: endTime,
+			page: 1,  // Reset to first page for new searches
+			page_size: 25  // Match the DataTable page size
+		};
+		
+		// Reset pagination
+		currentPage = 1;
+		
+		// Show loading indicator
+		logsTable.clear().draw();
+		$('#logsTable tbody').html('<tr><td colspan="4" class="text-center">Loading logs...</td></tr>');
+		$('#paginationControls').hide();
+		
+		// Fetch logs
+		fetchLogs();
+	});
+
+function fetchLogs() {
+    const sourceId = $('#investigateSourceId').val();
+    
+    // Update page in params
+    currentSearchParams.page = currentPage;
+    
+    $.ajax({
+        url: '/api/investigate/' + sourceId,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(currentSearchParams),
+        success: function(response) {
+            if (response.status === 'success') {
+                // Load data into DataTable
+                logsTable.clear();
+                
+                if (response.data.length > 0) {
+                    logsTable.rows.add(response.data).draw();
                     
-                    if (response.data.length > 0) {
-                        logsTable.rows.add(response.data).draw();
-                    } else {
-                        $('#logsTable tbody').html('<tr><td colspan="4" class="text-center">No logs found for the selected time range.</td></tr>');
+                    // Update pagination information
+                    if (response.pagination) {
+                        totalPages = response.pagination.total_pages;
+                        updatePaginationControls(response.pagination);
                     }
                 } else {
-                    alert('Error: ' + response.message);
+                    $('#logsTable tbody').html('<tr><td colspan="4" class="text-center">No logs found for the selected time range.</td></tr>');
+                    $('#paginationControls').hide();
                 }
-            },
-            error: function(xhr) {
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    alert('Error: ' + response.message);
-                } catch (e) {
-                    alert('An error occurred while fetching logs.');
-                }
-                $('#logsTable tbody').html('<tr><td colspan="4" class="text-center">Error loading logs.</td></tr>');
+            } else {
+                alert('Error: ' + response.message);
             }
-        });
+        },
+        error: function(xhr) {
+            try {
+                const response = JSON.parse(xhr.responseText);
+                alert('Error: ' + response.message);
+            } catch (e) {
+                alert('An error occurred while fetching logs.');
+            }
+            $('#logsTable tbody').html('<tr><td colspan="4" class="text-center">Error loading logs.</td></tr>');
+            $('#paginationControls').hide();
+        }
     });
+}
+
+	function fetchLogs() {
+		const sourceId = $('#investigateSourceId').val();
+		
+		// Update page in params
+		currentSearchParams.page = currentPage;
+		
+		$.ajax({
+			url: '/api/investigate/' + sourceId,
+			type: 'POST',
+			contentType: 'application/json',
+			data: JSON.stringify(currentSearchParams),
+			success: function(response) {
+				if (response.status === 'success') {
+					// Load data into DataTable
+					logsTable.clear();
+					
+					if (response.data.length > 0) {
+						logsTable.rows.add(response.data).draw();
+						
+						// Update pagination information
+						if (response.pagination) {
+							totalPages = response.pagination.total_pages;
+							updatePaginationControls(response.pagination);
+						}
+					} else {
+						$('#logsTable tbody').html('<tr><td colspan="4" class="text-center">No logs found for the selected time range.</td></tr>');
+						$('#paginationControls').hide();
+					}
+				} else {
+					alert('Error: ' + response.message);
+				}
+			},
+			error: function(xhr) {
+				try {
+					const response = JSON.parse(xhr.responseText);
+					alert('Error: ' + response.message);
+				} catch (e) {
+					alert('An error occurred while fetching logs.');
+				}
+				$('#logsTable tbody').html('<tr><td colspan="4" class="text-center">Error loading logs.</td></tr>');
+				$('#paginationControls').hide();
+			}
+		});
+	}
+
+	function updatePaginationControls(pagination) {
+		const totalPages = pagination.total_pages;
+		const currentPage = pagination.page;
+		
+		let paginationHtml = '<nav><ul class="pagination justify-content-center">';
+		
+		// Previous button
+		paginationHtml += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+			<a class="page-link" href="#" data-page="${currentPage - 1}">Previous</a>
+		</li>`;
+		
+		// Page numbers
+		const startPage = Math.max(1, currentPage - 2);
+		const endPage = Math.min(totalPages, startPage + 4);
+		
+		for (let i = startPage; i <= endPage; i++) {
+			paginationHtml += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+				<a class="page-link" href="#" data-page="${i}">${i}</a>
+			</li>`;
+		}
+		
+		// Next button
+		paginationHtml += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+			<a class="page-link" href="#" data-page="${currentPage + 1}">Next</a>
+		</li>`;
+		
+		paginationHtml += '</ul></nav>';
+		
+		// Add summary text
+		paginationHtml += `<div class="text-center text-muted mt-2">
+			Showing page ${currentPage} of ${totalPages}
+			(${pagination.total_count} total logs)
+		</div>`;
+		
+		// Update pagination controls
+		$('#paginationControls').html(paginationHtml).show();
+		
+		// Add click handlers to pagination links
+		$('.page-link').on('click', function(e) {
+			e.preventDefault();
+			const page = parseInt($(this).data('page'));
+			
+			if (page > 0 && page <= totalPages) {
+				currentPage = page;
+				fetchLogs();
+			}
+		});
+	}
 
     // Handle add source modal show
     $('#addSourceModal').on('show.bs.modal', function(e) {

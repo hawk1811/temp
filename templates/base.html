@@ -24,25 +24,31 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    {% if current_user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link active" aria-current="page" href="{{ url_for('index') }}">Dashboard</a>
-                    </li>
+				<ul class="navbar-nav me-auto mb-2 mb-lg-0">
+					{% if current_user.is_authenticated %}
 					<li class="nav-item">
-						<a class="nav-link" href="{{ url_for('monitor') }}">Monitoring</a>
+						<a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">Dashboard</a>
 					</li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('certificates') }}">SSL Certificates</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('change_password') }}">Change Password</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
-                    </li>
-                    {% endif %}
-                </ul>
+					<li class="nav-item">
+						<a class="nav-link {% if request.endpoint == 'sources' %}active{% endif %}" href="{{ url_for('manage_sources') }}">Sources</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link {% if request.endpoint == 'investigation' %}active{% endif %}" href="{{ url_for('investigation') }}">Investigation</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link {% if request.endpoint == 'monitor' %}active{% endif %}" href="{{ url_for('monitor') }}">Monitoring</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link {% if request.endpoint == 'certificates' %}active{% endif %}" href="{{ url_for('certificates') }}">SSL Certificates</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link {% if request.endpoint == 'change_password' %}active{% endif %}" href="{{ url_for('change_password') }}">Change Password</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+					</li>
+					{% endif %}
+				</ul>
             </div>
         </div>
     </nav>
@@ -82,7 +88,7 @@
     <!-- DateRangePicker JS -->
     <script src="{{ url_for('static', filename='js/daterangepicker.min.js') }}"></script>
     <!-- Custom JS -->
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <!-- <script src="{{ url_for('static', filename='js/main.js') }}"></script> -->
     {% block extra_js %}{% endblock %}
 </body>
 </html>

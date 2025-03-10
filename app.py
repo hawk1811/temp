@@ -98,6 +98,16 @@ def index():
     # Get updated stats for each source
     source_stats = get_source_stats(sources)
     
+    # Add datetime objects for last_log_time to enable time diff calculations in template
+    for source_id, source in source_stats.items():
+        if source.get('last_log_time'):
+            try:
+                source['last_log_time_obj'] = parser.parse(source['last_log_time'])
+            except:
+                source['last_log_time_obj'] = datetime.now()
+        else:
+            source['last_log_time_obj'] = None
+    
     # If this is the first login with default credentials, redirect to change password
     if current_user.id == 'admin' and current_user.must_change_password:
         flash('You must change your password before proceeding.', 'warning')
@@ -142,6 +152,30 @@ def monitor():
         return redirect(url_for('change_password'))
         
     return render_template('monitor.html')
+
+@app.route('/sources')
+@login_required
+def manage_sources():
+    """Render the sources management page."""
+    # If this is the first login with default credentials, redirect to change password
+    if current_user.id == 'admin' and current_user.must_change_password:
+        flash('You must change your password before proceeding.', 'warning')
+        return redirect(url_for('change_password'))
+        
+    # Get updated stats for each source
+    source_stats = get_source_stats(sources)
+    
+    # Add datetime objects for last_log_time to enable time diff calculations in template
+    for source_id, source in source_stats.items():
+        if source.get('last_log_time'):
+            try:
+                source['last_log_time_obj'] = parser.parse(source['last_log_time'])
+            except:
+                source['last_log_time_obj'] = datetime.now()
+        else:
+            source['last_log_time_obj'] = None
+    
+    return render_template('sources.html', sources=source_stats)
     
 @app.route('/change_password', methods=['GET', 'POST'])
 @login_required
@@ -295,33 +329,46 @@ def api_sources():
             # Validate source data
             if not source_data.get('name'):
                 return jsonify({'status': 'error', 'message': 'Source name is required'}), 400
+            
+            # Check target type and validate accordingly
+            target_type = source_data.get('target_type', 'folder')
+            
+            if target_type == 'folder':
+                if not source_data.get('target_directory'):
+                    return jsonify({'status': 'error', 'message': 'Target directory is required for folder targets'}), 400
+                    
+                # Validate target directory access
+                target_dir = source_data.get('target_directory')
+                logger.info(f"Validating target directory: {target_dir}")
                 
-            if not source_data.get('target_directory'):
-                return jsonify({'status': 'error', 'message': 'Target directory is required'}), 400
+                if not os.path.exists(target_dir):
+                    try:
+                        logger.info(f"Creating target directory: {target_dir}")
+                        os.makedirs(target_dir, exist_ok=True)
+                        # Verify we can write to it
+                        test_file = os.path.join(target_dir, '.test_write')
+                        with open(test_file, 'w') as f:
+                            f.write('test')
+                        os.remove(test_file)
+                        logger.info(f"Successfully created and verified write access to: {target_dir}")
+                    except PermissionError as e:
+                        logger.error(f"Permission error accessing target directory {target_dir}: {str(e)}")
+                        return jsonify({'status': 'error', 'message': f'Permission denied to target directory: {str(e)}'}), 400
+                    except Exception as e:
+                        logger.error(f"Error accessing target directory {target_dir}: {str(e)}")
+                        return jsonify({'status': 'error', 'message': f'Cannot access target directory: {str(e)}'}), 400
+            
+            elif target_type == 'hec':
+                if not source_data.get('hec_url'):
+                    return jsonify({'status': 'error', 'message': 'HEC URL is required for HEC targets'}), 400
+                if not source_data.get('hec_token'):
+                    return jsonify({'status': 'error', 'message': 'HEC token is required for HEC targets'}), 400
+            
+            else:
+                return jsonify({'status': 'error', 'message': 'Invalid target type. Must be "folder" or "hec"'}), 400
                 
             if not source_data.get('source_ips') or not isinstance(source_data.get('source_ips'), list):
                 return jsonify({'status': 'error', 'message': 'At least one source IP is required'}), 400
-            
-            # Validate target directory access
-            target_dir = source_data.get('target_directory')
-            logger.info(f"Validating target directory: {target_dir}")
-            
-            if not os.path.exists(target_dir):
-                try:
-                    logger.info(f"Creating target directory: {target_dir}")
-                    os.makedirs(target_dir, exist_ok=True)
-                    # Verify we can write to it
-                    test_file = os.path.join(target_dir, '.test_write')
-                    with open(test_file, 'w') as f:
-                        f.write('test')
-                    os.remove(test_file)
-                    logger.info(f"Successfully created and verified write access to: {target_dir}")
-                except PermissionError as e:
-                    logger.error(f"Permission error accessing target directory {target_dir}: {str(e)}")
-                    return jsonify({'status': 'error', 'message': f'Permission denied to target directory: {str(e)}'}), 400
-                except Exception as e:
-                    logger.error(f"Error accessing target directory {target_dir}: {str(e)}")
-                    return jsonify({'status': 'error', 'message': f'Cannot access target directory: {str(e)}'}), 400
             
             # Update sources and save
             try:
@@ -363,7 +410,7 @@ def api_sources():
     except Exception as e:
         logger.error(f"Error getting source stats: {str(e)}", exc_info=True)
         return jsonify({'status': 'error', 'message': f'Error retrieving sources: {str(e)}'}), 500
-
+        
 # Exempt CSRF for API endpoints
 @csrf.exempt
 @app.route('/api/sources/<source_id>', methods=['GET', 'DELETE'])
@@ -585,6 +632,9 @@ def api_monitor():
         logger.error(f"Error getting monitoring data: {str(e)}", exc_info=True)
         return jsonify({'status': 'error', 'message': f'Error retrieving monitoring data: {str(e)}'}), 500
         
+# Import and initialize investigation routes
+from investigation import init_investigation_routes
+init_investigation_routes(app, sources)
     
 if __name__ == '__main__':
     # Start log workers (4 workers by default - adjust based on your needs)

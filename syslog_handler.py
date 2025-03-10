@@ -14,6 +14,7 @@ import logging
 import threading
 import socketserver
 import ipaddress
+import uuid
 from datetime import datetime, timedelta
 import pandas as pd
 from dateutil import parser
@@ -80,20 +81,31 @@ class QueueManager:
                     break
                     
                 # Unpack the log task
-                target_dir, log_entry, source_id, timestamp = log_task
+                # The last element is the target type (folder or hec)
+                if len(log_task) == 5:
+                    target_dir, log_entry, source_id, timestamp, target_type = log_task
+                else:
+                    # Backward compatibility with old format
+                    target_dir, log_entry, source_id, timestamp = log_task
+                    target_type = 'folder'
                 
-                # Make sure target directory exists
-                os.makedirs(target_dir, exist_ok=True)
+                if target_type == 'hec':
+                    # Send to HEC endpoint
+                    self._send_to_hec(source_id, log_entry, timestamp)
+                else:
+                    # Write to folder
+                    # Make sure target directory exists
+                    os.makedirs(target_dir, exist_ok=True)
+                    
+                    # Write to hourly log file
+                    hour_bucket = timestamp.strftime('%Y%m%d_%H')
+                    filename = f"{hour_bucket}.log"
+                    filepath = os.path.join(target_dir, filename)
+                    
+                    with open(filepath, 'a') as f:
+                        f.write(json.dumps(log_entry) + '\n')
                 
-                # Write to hourly log file
-                hour_bucket = timestamp.strftime('%Y%m%d_%H')
-                filename = f"{hour_bucket}.log"
-                filepath = os.path.join(target_dir, filename)
-                
-                with open(filepath, 'a') as f:
-                    f.write(json.dumps(log_entry) + '\n')
-                
-                # Update index
+                # Update index for both types
                 update_background_index(source_id, timestamp, log_entry["id"])
                 
             except Exception as e:
@@ -101,6 +113,60 @@ class QueueManager:
             finally:
                 if not self.queue.empty():
                     self.queue.task_done()
+
+    def _send_to_hec(self, source_id, log_entry, timestamp):
+        """
+        Send a log entry to a HEC endpoint.
+        
+        Args:
+            source_id (str): Source ID
+            log_entry (dict): Log data
+            timestamp (datetime): Log timestamp
+        """
+        try:
+            # Get source configuration
+            source_config = global_sources.get(source_id, {})
+            
+            # Get HEC URL and token
+            hec_url = source_config.get('hec_url')
+            hec_token = source_config.get('hec_token')
+            
+            if not hec_url or not hec_token:
+                logger.error(f"Missing HEC URL or token for source {source_id}")
+                return
+            
+            # Prepare HEC payload
+            payload = {
+                "time": int(timestamp.timestamp()),
+                "host": log_entry.get('source_ip', 'unknown'),
+                "source": f"syslog:{source_id}",
+                "sourcetype": "syslog",
+                "index": "main",  # Default index
+                "event": log_entry
+            }
+            
+            # Set headers
+            headers = {
+                "Authorization": f"Splunk {hec_token}",
+                "Content-Type": "application/json"
+            }
+            
+            # Send to HEC endpoint with timeout
+            response = requests.post(
+                hec_url,
+                json=payload,
+                headers=headers,
+                timeout=5.0  # 5 second timeout
+            )
+            
+            # Check response
+            if response.status_code != 200:
+                logger.warning(f"HEC endpoint returned non-200 status: {response.status_code}, message: {response.text}")
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error sending to HEC endpoint for source {source_id}: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error sending to HEC for source {source_id}: {str(e)}")
 
 # Create queue manager
 queue_manager = QueueManager()
@@ -125,49 +191,54 @@ class SyslogUDPHandler(socketserver.BaseRequestHandler):
         except Exception as e:
             logger.error(f"Error handling syslog message: {str(e)}", exc_info=True)
     
-    def process_syslog(self, client_ip, message):
-        """
-        Process a syslog message using the improved storage system.
-        """
-        # Skip if memory usage is too high
-        if check_memory_usage() > Config.MAX_MEMORY_USAGE:
-            logger.warning("Memory usage too high, dropping syslog message")
-            return
-        
-        # Parse timestamp from syslog message
-        timestamp = self.extract_timestamp(message)
-        if not timestamp:
-            timestamp = datetime.now()
-        
-        # Find matching source
-        source_id = self.find_matching_source(client_ip)
-        if not source_id:
-            # No matching source found, store in default location
-            target_dir = os.path.join('logs', 'unknown')
-            log_entry = {
-                "timestamp": timestamp.isoformat(),
-                "source_ip": client_ip,
-                "message": message,
-                "id": f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{timestamp.microsecond:06d}"
-            }
-            # Queue the log for background processing
-            queue_manager.add_task((target_dir, log_entry, "unknown", timestamp))
-            return
-        
-        # Get source configuration
-        source_config = global_sources.get(source_id, {})
-        target_dir = source_config.get('target_directory', os.path.join('logs', source_id))
-        
-        # Prepare log entry
+def process_syslog(self, client_ip, message):
+    """
+    Process a syslog message using the improved storage system.
+    """
+    # Skip if memory usage is too high
+    if check_memory_usage() > Config.MAX_MEMORY_USAGE:
+        logger.warning("Memory usage too high, dropping syslog message")
+        return
+    
+    # Parse timestamp from syslog message
+    timestamp = self.extract_timestamp(message)
+    if not timestamp:
+        timestamp = datetime.now()
+    
+    # Find matching source
+    source_id = self.find_matching_source(client_ip)
+    if not source_id:
+        # No matching source found, store in default location
+        target_dir = os.path.join('logs', 'unknown')
         log_entry = {
             "timestamp": timestamp.isoformat(),
             "source_ip": client_ip,
             "message": message,
             "id": f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{timestamp.microsecond:06d}"
         }
-        
         # Queue the log for background processing
-        queue_manager.add_task((target_dir, log_entry, source_id, timestamp))
+        queue_manager.add_task((target_dir, log_entry, "unknown", timestamp))
+        return
+    
+    # Get source configuration
+    source_config = global_sources.get(source_id, {})
+    
+    # Prepare log entry
+    log_entry = {
+        "timestamp": timestamp.isoformat(),
+        "source_ip": client_ip,
+        "message": message,
+        "id": f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{timestamp.microsecond:06d}"
+    }
+    
+    # Check if this source uses HEC or folder target
+    if source_config.get('target_type') == 'hec':
+        # Send to HEC endpoint
+        queue_manager.add_task((None, log_entry, source_id, timestamp, 'hec'))
+    else:
+        # Default to folder target
+        target_dir = source_config.get('target_directory', os.path.join('logs', source_id))
+        queue_manager.add_task((target_dir, log_entry, source_id, timestamp, 'folder'))
     
     def extract_timestamp(self, message):
         """

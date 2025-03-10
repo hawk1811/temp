@@ -444,28 +444,36 @@ def get_source_stats(sources):
         dict: The source statistics
     """
     stats = {}
+    total_log_count = 0
     
     for source_id, source_config in sources.items():
-        index_file = os.path.join('data', f'{source_id}_index.json')
+        metadata_file = os.path.join('data', f'{source_id}.json')
         log_count = 0
         last_log_time = None
         
-        if os.path.exists(index_file):
+        if os.path.exists(metadata_file):
             try:
-                with open(index_file, 'r') as f:
-                    index = json.load(f)
+                with open(metadata_file, 'r') as f:
+                    metadata = json.load(f)
                 
-                log_count = index.get("total_count", 0)
-                last_log = index.get("last_log", {})
-                last_log_time = last_log.get("timestamp") if last_log else None
+                log_count = len(metadata)
+                total_log_count += log_count
                 
+                if metadata:
+                    # Sort by timestamp to find the most recent log
+                    sorted_metadata = sorted(metadata, key=lambda x: x.get('timestamp', ''), reverse=True)
+                    last_log_time = sorted_metadata[0].get('timestamp')
             except Exception as e:
-                logger.error(f"Error reading index for source {source_id}: {str(e)}")
+                logger.error(f"Error reading metadata for source {source_id}: {str(e)}")
         
         # Create stats
         stats[source_id] = source_config.copy()
         stats[source_id]['log_count'] = log_count
         stats[source_id]['last_log_time'] = last_log_time
+    
+    # Update EPS in monitoring module
+    from monitoring import update_eps
+    update_eps(total_log_count)
     
     return stats
 

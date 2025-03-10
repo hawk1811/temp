@@ -1,0 +1,13 @@
+{
+    "enabled": true,
+    "hec_url": "https://8ba23183ac404f5dbcc7e8cee93c3608.ingest.us-1.crowdstrike.com/services/collector",
+    "hec_token": "0fb69bb1be2f489e8fd8b3f2f5933832",
+    "interval": 60,
+    "metrics": [
+        "cpu",
+        "memory",
+        "eps",
+        "disk",
+        "process"
+    ]
+}

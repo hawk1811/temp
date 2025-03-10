@@ -26,7 +26,7 @@ from wtforms import FileField, SubmitField
 from wtforms.validators import DataRequired
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
-
+from monitoring import get_monitoring_status, update_monitoring_config, start_monitoring, stop_monitoring, monitoring_config as mc
 from config import Config
 from auth import User, init_users, save_users
 from syslog_handler import start_syslog_server, get_source_stats, parse_logs_for_timerange
@@ -135,7 +135,12 @@ def logout():
 @app.route('/monitor')
 @login_required
 def monitor():
-    """Render the system monitoring dashboard."""
+    """Render the monitoring configuration page."""
+    # If this is the first login with default credentials, redirect to change password
+    if current_user.id == 'admin' and current_user.must_change_password:
+        flash('You must change your password before proceeding.', 'warning')
+        return redirect(url_for('change_password'))
+        
     return render_template('monitor.html')
     
 @app.route('/change_password', methods=['GET', 'POST'])
@@ -212,6 +217,60 @@ def certificates():
             flash(f'Invalid certificate or private key: {str(e)}', 'danger')
     
     return render_template('certificates.html', form=form, cert_status=cert_status)
+
+@csrf.exempt
+@app.route('/api/monitoring', methods=['GET', 'POST'])
+@login_required
+def api_monitoring():
+    """API endpoint for monitoring configuration."""
+    if request.method == 'POST':
+        try:
+            config_data = request.json
+            if not config_data:
+                return jsonify({'status': 'error', 'message': 'Invalid JSON data received'}), 400
+            
+            # Update monitoring configuration
+            status = update_monitoring_config(config_data)
+            return jsonify({'status': 'success', 'data': status})
+        except Exception as e:
+            logger.error(f"Error updating monitoring configuration: {str(e)}", exc_info=True)
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+    # GET request - return current monitoring status
+    try:
+        status = get_monitoring_status()
+        return jsonify({'status': 'success', 'data': status})
+    except Exception as e:
+        logger.error(f"Error getting monitoring status: {str(e)}", exc_info=True)
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@csrf.exempt
+@app.route('/api/monitoring/test', methods=['POST'])
+@login_required
+def api_monitoring_test():
+    """API endpoint to test monitoring heartbeat."""
+    try:
+        # Get current metrics
+        metrics = mc._collect_metrics()
+        
+        # If HEC is configured, try to send a test heartbeat
+        if mc.hec_url and mc.hec_token:
+            mc._send_heartbeat(metrics)
+            return jsonify({
+                'status': 'success',
+                'message': 'Test heartbeat sent successfully',
+                'data': metrics
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'HEC URL or token not configured',
+                'data': metrics
+            }), 400
+    except Exception as e:
+        logger.error(f"Error testing monitoring heartbeat: {str(e)}", exc_info=True)
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 # Exempt CSRF for API sources endpoint
 @csrf.exempt
@@ -546,3 +605,4 @@ if __name__ == '__main__':
     
     # Start web server
     start_web_server()
+    start_monitoring()

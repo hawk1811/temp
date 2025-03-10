@@ -1,6 +1,6 @@
 {
     "admin": {
-        "password_hash": "pbkdf2:sha256:blabla",
+        "password_hash": "pbkdf2:sha256:260000$ARnvhHiNC8zoWtnz$b938effd503386d02e8f81a177613cb197f99fc840713d0574b75888aa0877b7",
         "must_change_password": false
     }
 }

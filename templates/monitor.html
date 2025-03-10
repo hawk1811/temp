@@ -1,195 +1,88 @@
 {% extends "base.html" %}
 
-{% block title %}System Monitor - SyslogManager{% endblock %}
-
-{% block extra_css %}
-<style>
-    .metric-card {
-        transition: all 0.3s ease;
-    }
-    .card-value {
-        font-size: 2.5rem;
-        font-weight: bold;
-    }
-    .card-label {
-        font-size: 1rem;
-        color: #6c757d;
-    }
-    .metric-chart {
-        height: 300px;
-    }
-    .chart-container {
-        position: relative;
-        height: 100%;
-        width: 100%;
-    }
-    .chart-loading {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(255, 255, 255, 0.7);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-    }
-    .worker-status {
-        padding: 10px;
-        border-radius: 5px;
-        margin-bottom: 10px;
-    }
-    .status-healthy {
-        background-color: #d4edda;
-        border: 1px solid #c3e6cb;
-    }
-    .status-warning {
-        background-color: #fff3cd;
-        border: 1px solid #ffeeba;
-    }
-    .status-danger {
-        background-color: #f8d7da;
-        border: 1px solid #f5c6cb;
-    }
-</style>
-{% endblock %}
+{% block title %}Monitoring - SyslogManager{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
+<div class="row">
     <div class="col-md-12">
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h3>System Monitor</h3>
-                <div>
-                    <span class="badge bg-primary" id="update-badge">Live</span>
-                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="pauseBtn">Pause</button>
-                </div>
+            <div class="card-header">
+                <h3>System Monitoring</h3>
             </div>
             <div class="card-body">
-                <!-- Key Metrics Cards -->
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="card metric-card">
-                            <div class="card-body text-center">
-                                <div class="card-value" id="current-eps">0</div>
-                                <div class="card-label">Current EPS</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card metric-card">
-                            <div class="card-body text-center">
-                                <div class="card-value" id="cpu-usage">0%</div>
-                                <div class="card-label">CPU Usage</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card metric-card">
-                            <div class="card-body text-center">
-                                <div class="card-value" id="memory-usage">0%</div>
-                                <div class="card-label">Memory Usage</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card metric-card">
-                            <div class="card-body text-center">
-                                <div class="card-value" id="active-workers">0</div>
-                                <div class="card-label">Active Workers</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Queue Status -->
                 <div class="row mb-4">
                     <div class="col-md-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5>Queue Status</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <div class="worker-status" id="queue-status">
-                                            <h6>Queue Size: <span id="queue-size">0</span></h6>
-                                            <div class="progress">
-                                                <div class="progress-bar" id="queue-progress" role="progressbar" 
-                                                    style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                                                    0%
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="worker-status" id="worker-status">
-                                            <h6>Worker Utilization</h6>
-                                            <div class="d-flex justify-content-between">
-                                                <span id="worker-ratio">0/0</span>
-                                                <span id="worker-utilization">0%</span>
-                                            </div>
-                                            <div class="progress">
-                                                <div class="progress-bar" id="worker-progress" role="progressbar" 
-                                                    style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                                                    0%
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="worker-status" id="processed-status">
-                                            <h6>Messages Processed</h6>
-                                            <div class="d-flex justify-content-between">
-                                                <span id="processed-count">0</span>
-                                                <span>Total</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="alert alert-info">
+                            <h5 class="alert-heading">HTTP Event Collector (HEC) Monitoring</h5>
+                            <p>
+                                Configure SyslogManager to send periodic heartbeats with system metrics to a Splunk HTTP Event Collector (HEC) or compatible endpoint.
+                            </p>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Charts -->
                 <div class="row">
-                    <div class="col-md-6 mb-4">
-                        <div class="card metric-chart">
-                            <div class="card-header">
-                                <h5>EPS History</h5>
+                    <div class="col-md-12">
+                        <form id="monitoringForm">
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="monitoringEnabled">
+                                <label class="form-check-label" for="monitoringEnabled">Enable Monitoring</label>
                             </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="eps-chart"></canvas>
-                                    <div class="chart-loading" id="eps-loading">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">Loading...</span>
-                                        </div>
-                                        <div class="mt-2">Loading data...</div>
-                                    </div>
+                            
+                            <div class="mb-3">
+                                <label for="hecUrl" class="form-label">HEC URL</label>
+                                <input type="url" class="form-control" id="hecUrl" placeholder="https://splunk-server:8088/services/collector">
+                                <div class="form-text">Enter the full URL of your Splunk HTTP Event Collector endpoint.</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="hecToken" class="form-label">HEC Token</label>
+                                <input type="password" class="form-control" id="hecToken" placeholder="HEC Token">
+                                <div class="form-text">Enter your Splunk HEC token for authentication.</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="interval" class="form-label">Heartbeat Interval (seconds)</label>
+                                <input type="number" class="form-control" id="interval" min="10" value="60">
+                                <div class="form-text">How often to send heartbeat metrics (minimum 10 seconds).</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Metrics to Include</label>
+                                <div class="form-check">
+                                    <input class="form-check-input metric-checkbox" type="checkbox" value="cpu" id="metricCpu" checked>
+                                    <label class="form-check-label" for="metricCpu">CPU Usage</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input metric-checkbox" type="checkbox" value="memory" id="metricMemory" checked>
+                                    <label class="form-check-label" for="metricMemory">Memory Usage</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input metric-checkbox" type="checkbox" value="eps" id="metricEps" checked>
+                                    <label class="form-check-label" for="metricEps">Events Per Second (EPS)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input metric-checkbox" type="checkbox" value="disk" id="metricDisk" checked>
+                                    <label class="form-check-label" for="metricDisk">Disk Usage</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input metric-checkbox" type="checkbox" value="process" id="metricProcess">
+                                    <label class="form-check-label" for="metricProcess">Process Information</label>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-4">
-                        <div class="card metric-chart">
-                            <div class="card-header">
-                                <h5>System Resources</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="resources-chart"></canvas>
-                                    <div class="chart-loading" id="resources-loading">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">Loading...</span>
-                                        </div>
-                                        <div class="mt-2">Loading data...</div>
-                                    </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Status</label>
+                                <div id="monitoringStatus" class="alert alert-secondary">
+                                    Loading monitoring status...
                                 </div>
                             </div>
-                        </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="button" id="testHeartbeatBtn" class="btn btn-info">Test Heartbeat</button>
+                                <button type="submit" class="btn btn-primary">Save Configuration</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -197,16 +90,24 @@
     </div>
 </div>
 
-<!-- System Alert Modal -->
-<div class="modal fade" id="systemAlertModal" tabindex="-1" aria-labelledby="systemAlertModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+<!-- Test Heartbeat Result Modal -->
+<div class="modal fade" id="testResultModal" tabindex="-1" aria-labelledby="testResultModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="systemAlertModalLabel">System Alert</h5>
+            <div class="modal-header">
+                <h5 class="modal-title" id="testResultModalLabel">Heartbeat Test Result</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p id="alert-message">High system load detected!</p>
+                <div id="testResultContainer">
+                    <div class="alert alert-info">
+                        Sending test heartbeat...
+                    </div>
+                </div>
+                <div id="heartbeatData" class="mt-3">
+                    <h6>Heartbeat Data:</h6>
+                    <pre id="heartbeatJson" class="bg-light p-3 rounded">Loading...</pre>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -217,241 +118,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-<script>
-    $(document).ready(function() {
-        // Chart configuration
-        const epsChart = new Chart(
-            document.getElementById('eps-chart').getContext('2d'),
-            {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Events Per Second',
-                        data: [],
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 2,
-                        tension: 0.3,
-                        pointRadius: 0,
-                        pointHitRadius: 10
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Events/Second'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            }
-                        }
-                    },
-                    animation: {
-                        duration: 0
-                    }
-                }
-            }
-        );
-        
-        const resourcesChart = new Chart(
-            document.getElementById('resources-chart').getContext('2d'),
-            {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: 'CPU',
-                            data: [],
-                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                            borderColor: 'rgba(255, 99, 132, 1)',
-                            borderWidth: 2,
-                            tension: 0.3,
-                            pointRadius: 0,
-                            pointHitRadius: 10
-                        },
-                        {
-                            label: 'Memory',
-                            data: [],
-                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                            borderColor: 'rgba(75, 192, 192, 1)',
-                            borderWidth: 2,
-                            tension: 0.3,
-                            pointRadius: 0,
-                            pointHitRadius: 10
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            title: {
-                                display: true,
-                                text: 'Percentage'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            }
-                        }
-                    },
-                    animation: {
-                        duration: 0
-                    }
-                }
-            }
-        );
-        
-        // Monitor state
-        let isPaused = false;
-        let alertThreshold = 80; // Alert when CPU or memory exceeds this percentage
-        let alertShown = false;
-        
-        // Toggle pause button
-        $('#pauseBtn').on('click', function() {
-            isPaused = !isPaused;
-            if (isPaused) {
-                $(this).text('Resume');
-                $('#update-badge').removeClass('bg-primary').addClass('bg-secondary').text('Paused');
-            } else {
-                $(this).text('Pause');
-                $('#update-badge').removeClass('bg-secondary').addClass('bg-primary').text('Live');
-                // Force an immediate update
-                updateMonitorData();
-            }
-        });
-        
-        // Initial data load
-        updateMonitorData();
-        
-        // Hide loading indicators after first data load
-        function hideLoading() {
-            $('#eps-loading').hide();
-            $('#resources-loading').hide();
-        }
-        
-        // Update dashboard with fresh data
-        function updateMonitorData() {
-            if (isPaused) return;
-            
-            $.ajax({
-                url: '/api/monitor',
-                type: 'GET',
-                success: function(response) {
-                    if (response.status === 'success') {
-                        updateDashboard(response.data);
-                        hideLoading();
-                    }
-                },
-                error: function(xhr) {
-                    console.error('Error fetching monitor data:', xhr.responseText);
-                    setTimeout(updateMonitorData, 5000); // Retry after 5 seconds
-                },
-                complete: function() {
-                    if (!isPaused) {
-                        setTimeout(updateMonitorData, 1000); // Update every second
-                    }
-                }
-            });
-        }
-        
-        // Update dashboard elements with new data
-        function updateDashboard(data) {
-            // Update metrics cards
-            $('#current-eps').text(data.current_eps || 0);
-            $('#cpu-usage').text((data.cpu_usage || 0).toFixed(1) + '%');
-            $('#memory-usage').text((data.memory_usage || 0).toFixed(1) + '%');
-            $('#active-workers').text(data.active_workers || 0);
-            
-            // Update queue status
-            $('#queue-size').text(data.queue_size || 0);
-            const queuePercent = Math.min(100, ((data.queue_size || 0) / data.queue_capacity) * 100).toFixed(1);
-            $('#queue-progress')
-                .css('width', queuePercent + '%')
-                .attr('aria-valuenow', queuePercent)
-                .text(queuePercent + '%');
-            
-            if (queuePercent > 80) {
-                $('#queue-status').removeClass('status-healthy status-warning').addClass('status-danger');
-            } else if (queuePercent > 50) {
-                $('#queue-status').removeClass('status-healthy status-danger').addClass('status-warning');
-            } else {
-                $('#queue-status').removeClass('status-warning status-danger').addClass('status-healthy');
-            }
-            
-            // Update worker status
-            $('#worker-ratio').text(`${data.active_workers || 0}/${data.max_workers || 0}`);
-            const workerPercent = ((data.active_workers || 0) / (data.max_workers || 1) * 100).toFixed(1);
-            $('#worker-utilization').text(workerPercent + '%');
-            $('#worker-progress')
-                .css('width', workerPercent + '%')
-                .attr('aria-valuenow', workerPercent)
-                .text(workerPercent + '%');
-            
-            if (workerPercent > 90) {
-                $('#worker-status').removeClass('status-healthy status-warning').addClass('status-danger');
-            } else if (workerPercent > 70) {
-                $('#worker-status').removeClass('status-healthy status-danger').addClass('status-warning');
-            } else {
-                $('#worker-status').removeClass('status-warning status-danger').addClass('status-healthy');
-            }
-            
-            // Update processed message count
-            $('#processed-count').text((data.messages_processed || 0).toLocaleString());
-            
-            // Update EPS chart
-            if (data.eps_history && data.eps_history.timestamps) {
-                epsChart.data.labels = data.eps_history.timestamps.slice(-60); // Last 60 seconds
-                epsChart.data.datasets[0].data = data.eps_history.values.slice(-60);
-                epsChart.update();
-            }
-            
-            // Update resources chart
-            if (data.resource_history && data.resource_history.timestamps) {
-                resourcesChart.data.labels = data.resource_history.timestamps.slice(-60);
-                resourcesChart.data.datasets[0].data = data.resource_history.cpu.slice(-60);
-                resourcesChart.data.datasets[1].data = data.resource_history.memory.slice(-60);
-                resourcesChart.update();
-            }
-            
-            // Check for alerts
-            if (!alertShown && (data.cpu_usage > alertThreshold || data.memory_usage > alertThreshold)) {
-                let alertMessage = '';
-                if (data.cpu_usage > alertThreshold) {
-                    alertMessage += `High CPU usage detected: ${data.cpu_usage.toFixed(1)}%<br>`;
-                }
-                if (data.memory_usage > alertThreshold) {
-                    alertMessage += `High memory usage detected: ${data.memory_usage.toFixed(1)}%<br>`;
-                }
-                
-                $('#alert-message').html(alertMessage);
-                var modal = new bootstrap.Modal(document.getElementById('systemAlertModal'));
-                modal.show();
-                alertShown = true;
-                
-                // Reset alert after 30 seconds
-                setTimeout(() => { alertShown = false; }, 30000);
-            }
-        }
-    });
-</script>
+<script src="{{ url_for('static', filename='js/monitor.js') }}"></script>
 {% endblock %}

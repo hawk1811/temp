@@ -15,6 +15,7 @@ import threading
 import socketserver
 import ipaddress
 import uuid
+import requests
 from datetime import datetime, timedelta
 import pandas as pd
 from dateutil import parser
@@ -163,10 +164,8 @@ class QueueManager:
             if response.status_code != 200:
                 logger.warning(f"HEC endpoint returned non-200 status: {response.status_code}, message: {response.text}")
             
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error sending to HEC endpoint for source {source_id}: {str(e)}")
         except Exception as e:
-            logger.error(f"Unexpected error sending to HEC for source {source_id}: {str(e)}")
+            logger.error(f"Error sending to HEC endpoint for source {source_id}: {str(e)}")
 
 # Create queue manager
 queue_manager = QueueManager()
@@ -191,54 +190,54 @@ class SyslogUDPHandler(socketserver.BaseRequestHandler):
         except Exception as e:
             logger.error(f"Error handling syslog message: {str(e)}", exc_info=True)
     
-def process_syslog(self, client_ip, message):
-    """
-    Process a syslog message using the improved storage system.
-    """
-    # Skip if memory usage is too high
-    if check_memory_usage() > Config.MAX_MEMORY_USAGE:
-        logger.warning("Memory usage too high, dropping syslog message")
-        return
-    
-    # Parse timestamp from syslog message
-    timestamp = self.extract_timestamp(message)
-    if not timestamp:
-        timestamp = datetime.now()
-    
-    # Find matching source
-    source_id = self.find_matching_source(client_ip)
-    if not source_id:
-        # No matching source found, store in default location
-        target_dir = os.path.join('logs', 'unknown')
+    def process_syslog(self, client_ip, message):
+        """
+        Process a syslog message using the improved storage system.
+        """
+        # Skip if memory usage is too high
+        if check_memory_usage() > Config.MAX_MEMORY_USAGE:
+            logger.warning("Memory usage too high, dropping syslog message")
+            return
+        
+        # Parse timestamp from syslog message
+        timestamp = self.extract_timestamp(message)
+        if not timestamp:
+            timestamp = datetime.now()
+        
+        # Find matching source
+        source_id = self.find_matching_source(client_ip)
+        if not source_id:
+            # No matching source found, store in default location
+            target_dir = os.path.join('logs', 'unknown')
+            log_entry = {
+                "timestamp": timestamp.isoformat(),
+                "source_ip": client_ip,
+                "message": message,
+                "id": f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{timestamp.microsecond:06d}"
+            }
+            # Queue the log for background processing
+            queue_manager.add_task((target_dir, log_entry, "unknown", timestamp))
+            return
+        
+        # Get source configuration
+        source_config = global_sources.get(source_id, {})
+        
+        # Prepare log entry
         log_entry = {
             "timestamp": timestamp.isoformat(),
             "source_ip": client_ip,
             "message": message,
             "id": f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{timestamp.microsecond:06d}"
         }
-        # Queue the log for background processing
-        queue_manager.add_task((target_dir, log_entry, "unknown", timestamp))
-        return
-    
-    # Get source configuration
-    source_config = global_sources.get(source_id, {})
-    
-    # Prepare log entry
-    log_entry = {
-        "timestamp": timestamp.isoformat(),
-        "source_ip": client_ip,
-        "message": message,
-        "id": f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{timestamp.microsecond:06d}"
-    }
-    
-    # Check if this source uses HEC or folder target
-    if source_config.get('target_type') == 'hec':
-        # Send to HEC endpoint
-        queue_manager.add_task((None, log_entry, source_id, timestamp, 'hec'))
-    else:
-        # Default to folder target
-        target_dir = source_config.get('target_directory', os.path.join('logs', source_id))
-        queue_manager.add_task((target_dir, log_entry, source_id, timestamp, 'folder'))
+        
+        # Check if this source uses HEC or folder target
+        if source_config.get('target_type') == 'hec':
+            # Send to HEC endpoint
+            queue_manager.add_task((None, log_entry, source_id, timestamp, 'hec'))
+        else:
+            # Default to folder target
+            target_dir = source_config.get('target_directory', os.path.join('logs', source_id))
+            queue_manager.add_task((target_dir, log_entry, source_id, timestamp, 'folder'))
     
     def extract_timestamp(self, message):
         """

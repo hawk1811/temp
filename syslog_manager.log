@@ -1,0 +1,339 @@
+2025-03-04 16:13:33,913 - auth - INFO - Created default admin user
+2025-03-04 16:13:33,923 - __main__ - INFO - Starting web server on 0.0.0.0:5000
+2025-03-04 16:13:33,929 - syslog_handler - INFO - Starting syslog server on 0.0.0.0:514
+2025-03-04 16:13:35,051 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.250.164:5000
+2025-03-04 16:13:35,051 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-03-04 16:14:08,258 - werkzeug - INFO - 192.168.250.164 - - [04/Mar/2025 16:14:08] "[32mGET / HTTP/1.1[0m" 302 -
+2025-03-04 16:14:08,283 - app - ERROR - Exception on /login [GET]
+Traceback (most recent call last):
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\logmgr\app.py", line 99, in login
+    return render_template('login.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 1304, in render
+    self.environment.handle_exception()
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 939, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\logmgr\templates\login.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 939, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\logmgr\templates\base.html", line 62, in template
+    <span class="text-muted">SyslogManager &copy; {% now year %}</span>
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'now'.
+2025-03-04 16:14:08,291 - werkzeug - INFO - 192.168.250.164 - - [04/Mar/2025 16:14:08] "[35m[1mGET /login?next=/ HTTP/1.1[0m" 500 -
+2025-03-04 16:14:08,412 - werkzeug - INFO - 192.168.250.164 - - [04/Mar/2025 16:14:08] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-03-04 16:14:17,487 - werkzeug - ERROR - 192.168.250.164 - - [04/Mar/2025 16:14:17] code 400, message Bad request version ('ºº\x13\x01\x13\x02\x13\x03À+À/À,À0Ì©Ì¨À\x13À\x14\x00\x9c\x00\x9d\x00/\x005\x01\x00\x06S**\x00\x00ÿ\x01\x00\x01\x00\x00#\x00\x00\x00-\x00\x02\x01\x01\x00\x17\x00\x00\x00')
+2025-03-04 16:14:17,489 - werkzeug - ERROR - 192.168.250.164 - - [04/Mar/2025 16:14:17] code 400, message Bad request version ('\x06ö\x89\x14Ì')
+2025-03-04 16:14:17,490 - werkzeug - INFO - 192.168.250.164 - - [04/Mar/2025 16:14:17] "[31m[1m\x16\x03\x01\x06À\x01\x00\x06¼\x03\x03\x1cf}îC\x18\x81\x7f±I¿o@àøÖFP\x85\x87zT\x82ö\x12Dá\x9e=Á\x1fr =Ñb2_\x07P\x90­F\x1dÃ\x04èÚRd\x82]s\x90cV\x87Òé?FÌ7>e\x00 ºº\x13\x01\x13\x02\x13\x03À+À/À,À0Ì©Ì¨À\x13À\x14\x00\x9c\x00\x9d\x00/\x005\x01\x00\x06S**\x00\x00ÿ\x01\x00\x01\x00\x00#\x00\x00\x00-\x00\x02\x01\x01\x00\x17\x00\x00\x00[0m" 400 -
+2025-03-04 16:14:17,490 - werkzeug - INFO - 192.168.250.164 - - [04/Mar/2025 16:14:17] "[31m[1m\x16\x03\x01\x07\x00\x01\x00\x06ü\x03\x03\x89³\x84\x96\x0e\x80ï\x00ãn\x19&\x89m\x0d\x05®÷ß\x09I¥\x7fïjó\x8dQ8ÝÆ§ .2¼^6ý%\x82ÎScß(\x81\x8a®ë9YR0½E:w\x88\x96¶ÉÔ6$\x00 ÊÊ\x13\x01\x13\x02\x13\x03À+À/À,À0Ì©Ì¨À\x13À\x14\x00\x9c\x00\x9d\x00/\x005\x01\x00\x06\x93ªª\x00\x00\x00\x0b\x00\x02\x01\x00\x00\x05\x00\x05\x01\x00\x00\x00\x00ÿ\x01\x00\x01\x00\x00\x17\x00\x00\x00-\x00\x02\x01\x01\x00\x10\x00\x0e\x00\x0c\x02h2\x08http/1.1DÍ\x00\x05\x00\x03\x02h2\x00\x12\x00\x00\x00+\x00\x07\x06\x1a\x1a\x03\x04\x03\x03\x00#\x00\x00\x003\x04ï\x04íªª\x00\x01\x00\x11ì\x04À\x80\x14\x0b!±\x11´\x94\x07\x85\x11D=t,rv\x9a\x0dô}Çè*áâ\x12\x16çMqº\x9a\\Qºá)\x90ì<«~\x12h¬ðD"e/÷*}\x92\x90¶\x01ø\x07\x0b\x00\x96ðÓAª|\x9e\x8f\x08\x1c\x06ö\x89\x14Ì[0m" 400 -
+2025-03-04 16:14:17,494 - werkzeug - ERROR - 192.168.250.164 - - [04/Mar/2025 16:14:17] code 400, message Bad request version ('G')
+2025-03-04 16:14:17,494 - werkzeug - INFO - 192.168.250.164 - - [04/Mar/2025 16:14:17] "[31m[1m\x16\x03\x01\x07\x00\x01\x00\x06ü\x03\x03q\x8bNÑ@u\x05qL\x8a¦í8?\x8d§Ý»9Æî\x9dã2ÚRù+ÒÏ\x0f¡ ø\x99ë\x85O¤u\x18hr×·ð;RqXº ö[\x85ÂYG\x81mbÉâ¥Ñ\x00 **\x13\x01\x13\x02\x13\x03À+À/À,À0Ì©Ì¨À\x13À\x14\x00\x9c\x00\x9d\x00/\x005\x01\x00\x06\x93ÊÊ\x00\x00\x003\x04ï\x04ízz\x00\x01\x00\x11ì\x04À\x00W\x9f\x87&´9Z\x86.èj\x96¹\x07\x86\x129=VÅ\x17l\x13<\x0bGFiÁX\x89£\x9eb\x0cÌÑN\x04µ\x00\x11 «\x98t\x1eepW\x1fµx\x06\x18zWj³ ðL8Ç\x9eï:\x08îK´\x9c\x98±8c\x0f"HgÄY[\x0dê\x1eèa¼Wä©Ð\x03\x03\x08Ai\x1bq\x1d\x82\x17\x85Ês²\x1e,?\x9f%\x86ejU\x15\x833\x87yt.À\x07\x9cA/}à\x03RyP\x8a¼86(\x0c\x7fQ.ðAU\x1c¥¢M\x09G[0m" 400 -
+2025-03-04 16:14:17,496 - werkzeug - ERROR - 192.168.250.164 - - [04/Mar/2025 16:14:17] code 400, message Bad request version ('zz\x13\x01\x13\x02\x13\x03À+À/À,À0Ì©Ì¨À\x13À\x14\x00\x9c\x00\x9d\x00/\x005\x01\x00\x06sºº\x00\x00ÿ\x01\x00\x01\x00DÍ\x00\x05\x00\x03\x02h2\x00\x05\x00\x05\x01\x00\x00\x00\x00\x00-\x00\x02\x01\x01\x00')
+2025-03-04 16:14:17,496 - werkzeug - INFO - 192.168.250.164 - - [04/Mar/2025 16:14:17] "[31m[1m\x16\x03\x01\x06à\x01\x00\x06Ü\x03\x03;"vÎ4ÂÝ\x9b,D\x82&&ç\x1d»ÿß1Ä\x03\x06\x96Ï=)ÿk;ûØÓ Vk^\x15,Óò\x0d¹Iì\x14O@;\x08ïNh\x04yWçP$®\x17EAtÑ¾\x00 zz\x13\x01\x13\x02\x13\x03À+À/À,À0Ì©Ì¨À\x13À\x14\x00\x9c\x00\x9d\x00/\x005\x01\x00\x06sºº\x00\x00ÿ\x01\x00\x01\x00DÍ\x00\x05\x00\x03\x02h2\x00\x05\x00\x05\x01\x00\x00\x00\x00\x00-\x00\x02\x01\x01\x00[0m" 400 -
+2025-03-04 16:14:30,132 - werkzeug - INFO - 127.0.0.1 - - [04/Mar/2025 16:14:30] "[32mGET / HTTP/1.1[0m" 302 -
+2025-03-04 16:14:30,147 - app - ERROR - Exception on /login [GET]
+Traceback (most recent call last):
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\logmgr\app.py", line 99, in login
+    return render_template('login.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 1304, in render
+    self.environment.handle_exception()
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 939, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\logmgr\templates\login.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 939, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\logmgr\templates\base.html", line 62, in template
+    <span class="text-muted">SyslogManager &copy; {% now year %}</span>
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'now'.
+2025-03-04 16:14:30,150 - werkzeug - INFO - 127.0.0.1 - - [04/Mar/2025 16:14:30] "[35m[1mGET /login?next=/ HTTP/1.1[0m" 500 -
+2025-03-04 16:14:30,393 - werkzeug - INFO - 127.0.0.1 - - [04/Mar/2025 16:14:30] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-03-04 16:27:13,972 - syslog_handler - INFO - Starting syslog server on 0.0.0.0:514
+2025-03-04 16:27:14,062 - __main__ - INFO - Starting Waitress production server on 0.0.0.0:5000 with 4 threads
+2025-03-04 16:27:14,071 - waitress - INFO - Serving on http://0.0.0.0:5000
+2025-03-04 16:27:34,942 - app - ERROR - Exception on /login [GET]
+Traceback (most recent call last):
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\logmgr\app.py", line 99, in login
+    return render_template('login.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 1304, in render
+    self.environment.handle_exception()
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 939, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\logmgr\templates\login.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 939, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\logmgr\templates\base.html", line 62, in template
+    <span class="text-muted">SyslogManager &copy; {% now year %}</span>
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'now'.
+2025-03-04 16:27:37,930 - app - ERROR - Exception on /login [GET]
+Traceback (most recent call last):
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\logmgr\app.py", line 99, in login
+    return render_template('login.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 1304, in render
+    self.environment.handle_exception()
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 939, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\logmgr\templates\login.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 939, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\logmgr\templates\base.html", line 62, in template
+    <span class="text-muted">SyslogManager &copy; {% now year %}</span>
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'now'.
+2025-03-04 16:35:48,981 - syslog_handler - INFO - Starting syslog server on 0.0.0.0:514
+2025-03-04 16:35:49,066 - __main__ - INFO - Starting Waitress production server on 0.0.0.0:5000 with 4 threads
+2025-03-04 16:35:49,073 - waitress - INFO - Serving on http://0.0.0.0:5000
+2025-03-04 16:35:55,372 - app - ERROR - Exception on /login [GET]
+Traceback (most recent call last):
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\logmgr\app.py", line 105, in login
+    return render_template('login.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 1304, in render
+    self.environment.handle_exception()
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\environment.py", line 939, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\logmgr\templates\login.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "C:\logmgr\templates\base.html", line 56, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\logmgr\templates\login.html", line 14, in block 'content'
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\jinja2\utils.py", line 83, in from_obj
+    if hasattr(obj, "jinja_pass_arg"):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+jinja2.exceptions.UndefinedError: 'csrf_token' is undefined
+2025-03-04 16:47:06,596 - syslog_handler - INFO - Starting syslog server on 0.0.0.0:514
+2025-03-04 16:47:06,675 - __main__ - INFO - Starting Waitress production server on 0.0.0.0:5000 with 4 threads
+2025-03-04 16:47:06,690 - waitress - INFO - Serving on http://0.0.0.0:5000
+2025-03-04 16:48:22,086 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 16:49:05,741 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 16:49:05,742 - waitress.queue - WARNING - Task queue depth is 2
+2025-03-04 16:49:32,024 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 16:49:32,027 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 16:53:00,124 - flask_wtf.csrf - INFO - The CSRF token is invalid.
+2025-03-04 16:53:23,498 - flask_wtf.csrf - INFO - The CSRF token is invalid.
+2025-03-04 16:53:34,766 - flask_wtf.csrf - INFO - The CSRF token is invalid.
+2025-03-04 16:55:05,632 - flask_wtf.csrf - INFO - The CSRF token is invalid.
+2025-03-04 16:56:09,451 - flask_wtf.csrf - INFO - The CSRF token is invalid.
+2025-03-04 16:56:16,620 - flask_wtf.csrf - INFO - The CSRF token is invalid.
+2025-03-04 16:57:16,834 - flask_wtf.csrf - INFO - The CSRF token is invalid.
+2025-03-04 17:06:53,400 - syslog_handler - INFO - Starting syslog server on 0.0.0.0:514
+2025-03-04 17:06:53,496 - __main__ - INFO - Starting Waitress production server on 0.0.0.0:5000 with 4 threads
+2025-03-04 17:06:53,511 - waitress - INFO - Serving on http://0.0.0.0:5000
+2025-03-04 17:07:11,517 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 17:07:11,521 - waitress.queue - WARNING - Task queue depth is 2
+2025-03-04 17:08:09,861 - __main__ - INFO - Received source data: {'id': '', 'name': 'Kobi Test', 'target_directory': 'c:\\logs\\kobi', 'source_ips': ['192.168.250.164', '127.0.0.1']}
+2025-03-04 17:08:09,864 - __main__ - INFO - Validating target directory: c:\logs\kobi
+2025-03-04 17:08:09,866 - __main__ - INFO - Creating new source with ID: 513dd226-3425-4a2e-af4e-e602b5855a78
+2025-03-04 17:08:09,866 - __main__ - INFO - Creating JSON file: data\513dd226-3425-4a2e-af4e-e602b5855a78.json
+2025-03-04 17:08:09,868 - __main__ - INFO - Saving sources configuration
+2025-03-04 17:08:10,315 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 17:12:08,380 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 17:14:08,274 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 17:14:08,274 - waitress.queue - WARNING - Task queue depth is 2
+2025-03-04 17:25:09,980 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 17:25:13,145 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 17:26:23,063 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 17:30:03,102 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 17:30:03,102 - waitress.queue - WARNING - Task queue depth is 2
+2025-03-04 17:51:59,133 - syslog_handler - INFO - Starting syslog server on 0.0.0.0:514
+2025-03-04 17:51:59,284 - __main__ - INFO - Starting Waitress production server on 0.0.0.0:5000 with 4 threads
+2025-03-04 17:51:59,293 - waitress - INFO - Serving on http://0.0.0.0:5000
+2025-03-04 17:52:16,124 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 21:28:57,616 - syslog_handler - INFO - Starting syslog server on 0.0.0.0:514
+2025-03-04 21:28:57,957 - __main__ - INFO - Starting Waitress production server on 0.0.0.0:5000 with 4 threads
+2025-03-04 21:28:57,989 - waitress - INFO - Serving on http://0.0.0.0:5000
+2025-03-04 21:29:08,416 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 21:29:08,463 - waitress.queue - WARNING - Task queue depth is 2
+2025-03-04 21:29:30,919 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-04 21:29:39,772 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-10 11:08:48,133 - syslog_handler - INFO - Starting syslog server on 0.0.0.0:514
+2025-03-10 11:08:48,263 - __main__ - INFO - Starting Waitress production server on 0.0.0.0:5000 with 4 threads
+2025-03-10 11:08:48,279 - waitress - INFO - Serving on http://0.0.0.0:5000
+2025-03-10 11:09:00,238 - app - ERROR - Exception on /login [POST]
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2544.0_x64__qbz5n2kfra8p0\Lib\hmac.py", line 60, in __init__
+    self._init_hmac(key, msg, digestmod)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2544.0_x64__qbz5n2kfra8p0\Lib\hmac.py", line 67, in _init_hmac
+    self._hmac = _hashopenssl.hmac_new(key, msg, digestmod=digestmod)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_hashlib.UnsupportedDigestmodError: [digital envelope routines] unsupported
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2544.0_x64__qbz5n2kfra8p0\Lib\hashlib.py", line 160, in __hash_new
+    return _hashlib.new(name, data, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_hashlib.UnsupportedDigestmodError: [digital envelope routines] unsupported
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 2528, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 1825, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 1823, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\flask\app.py", line 1799, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\logmgr\Ver1\app.py", line 115, in login
+    if user and check_password_hash(user.password_hash, password):
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\werkzeug\security.py", line 107, in check_password_hash
+    return hmac.compare_digest(_hash_internal(method, salt, password)[0], hashval)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\theha\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\werkzeug\security.py", line 55, in _hash_internal
+    return hmac.new(salt, password, method).hexdigest(), method
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2544.0_x64__qbz5n2kfra8p0\Lib\hmac.py", line 184, in new
+    return HMAC(key, msg, digestmod)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2544.0_x64__qbz5n2kfra8p0\Lib\hmac.py", line 62, in __init__
+    self._init_old(key, msg, digestmod)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2544.0_x64__qbz5n2kfra8p0\Lib\hmac.py", line 80, in _init_old
+    self._outer = digest_cons()
+                  ^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2544.0_x64__qbz5n2kfra8p0\Lib\hmac.py", line 75, in <lambda>
+    digest_cons = lambda d=b'': _hashlib.new(digestmod, d)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2544.0_x64__qbz5n2kfra8p0\Lib\hashlib.py", line 166, in __hash_new
+    return __get_builtin_constructor(name)(data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2544.0_x64__qbz5n2kfra8p0\Lib\hashlib.py", line 123, in __get_builtin_constructor
+    raise ValueError('unsupported hash type ' + name)
+ValueError: unsupported hash type scrypt:32768:8:1
+2025-03-10 11:11:29,928 - auth - INFO - Created default admin user
+2025-03-10 11:11:29,946 - syslog_handler - INFO - Starting syslog server on 0.0.0.0:514
+2025-03-10 11:11:30,080 - __main__ - INFO - Starting Waitress production server on 0.0.0.0:5000 with 4 threads
+2025-03-10 11:11:30,080 - waitress - INFO - Serving on http://0.0.0.0:5000
+2025-03-10 11:11:33,642 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-10 11:11:37,574 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-10 11:11:53,431 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-10 11:12:49,004 - __main__ - INFO - Received source data: {'id': '', 'name': 'Kobi_Local_Windows', 'target_directory': 'c:\\logs\\kobi', 'source_ips': ['127.0.0.1', '192.168.68.45']}
+2025-03-10 11:12:49,007 - __main__ - INFO - Validating target directory: c:\logs\kobi
+2025-03-10 11:12:49,008 - __main__ - INFO - Creating new source with ID: bc9ba27a-d1f6-40bd-8067-e539f2f84e0e
+2025-03-10 11:12:49,008 - __main__ - INFO - Creating JSON file: data\bc9ba27a-d1f6-40bd-8067-e539f2f84e0e.json
+2025-03-10 11:12:49,009 - __main__ - INFO - Saving sources configuration
+2025-03-10 11:12:49,388 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-10 11:14:21,077 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-10 11:14:21,077 - waitress.queue - WARNING - Task queue depth is 2
+2025-03-10 11:14:25,263 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-10 11:14:55,680 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-10 11:15:01,467 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-10 11:17:13,180 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-10 11:17:15,763 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-10 11:20:54,578 - syslog_handler - ERROR - Error reading metadata for source bc9ba27a-d1f6-40bd-8067-e539f2f84e0e: Expecting property name enclosed in double quotes: line 1189 column 9 (char 39876)
+2025-03-10 11:20:54,945 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-10 11:20:58,884 - syslog_handler - ERROR - Error reading metadata for source bc9ba27a-d1f6-40bd-8067-e539f2f84e0e: Expecting property name enclosed in double quotes: line 1189 column 9 (char 39876)
+2025-03-10 11:21:04,078 - syslog_handler - ERROR - Error reading metadata for source bc9ba27a-d1f6-40bd-8067-e539f2f84e0e: Expecting ',' delimiter: line 2850 column 61 (char 95754)
+2025-03-10 11:21:04,449 - waitress.queue - WARNING - Task queue depth is 1
+2025-03-10 11:22:02,511 - syslog_handler - ERROR - Error reading metadata for source bc9ba27a-d1f6-40bd-8067-e539f2f84e0e: Expecting ',' delimiter: line 10450 column 61 (char 351114)

@@ -1,0 +1,11 @@
+{
+    "bc9ba27a-d1f6-40bd-8067-e539f2f84e0e": {
+        "id": "bc9ba27a-d1f6-40bd-8067-e539f2f84e0e",
+        "name": "Kobi_Local_Windows",
+        "target_directory": "c:\\logs\\kobi",
+        "source_ips": [
+            "127.0.0.1",
+            "192.168.68.45"
+        ]
+    }
+}

@@ -3,6 +3,67 @@
 {% block title %}Dashboard - SyslogManager{% endblock %}
 
 {% block content %}
+<!-- System Performance Panel -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3>System Performance</h3>
+                <button type="button" class="btn btn-info" id="refreshStatsBtn">
+                    <i class="bi bi-arrow-repeat"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">CPU Usage</h5>
+                                <h2 id="cpuUsage">-</h2>
+                                <div class="progress">
+                                    <div id="cpuProgressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Memory Usage</h5>
+                                <h2 id="memoryUsage">-</h2>
+                                <div class="progress">
+                                    <div id="memoryProgressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Worker Utilization</h5>
+                                <h2 id="workerUtilization">-</h2>
+                                <div class="progress">
+                                    <div id="workerProgressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Logs Processing</h5>
+                                <h2 id="logsRate">-</h2>
+                                <div>
+                                    <small id="queueStatus">Queue: 0</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <div class="row mb-4">
     <div class="col-md-12">
         <div class="card">

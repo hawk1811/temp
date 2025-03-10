@@ -12,6 +12,9 @@ import json
 import threading
 import logging
 import ssl
+import psutil
+import time
+import syslog_handler
 from system_monitor import get_monitor
 from syslog_handler import get_system_metrics, queue_manager
 from datetime import datetime
@@ -379,6 +382,25 @@ def api_investigate(source_id):
         logger.error(f"Error processing logs: {str(e)}", exc_info=True)
         return jsonify({'status': 'error', 'message': f'Error processing logs: {str(e)}'}), 500
 
+@app.route('/api/system_stats', methods=['GET'])
+@login_required
+def api_system_stats():
+    """API endpoint for system performance statistics."""
+    try:
+        # Get system metrics
+        stats = syslog_handler.get_system_metrics()
+        
+        return jsonify({
+            "status": "success",
+            "stats": stats
+        })
+    except Exception as e:
+        logger.error(f"Error getting system stats: {str(e)}", exc_info=True)
+        return jsonify({
+            "status": "error",
+            "message": f"Error retrieving system stats: {str(e)}"
+        }), 500
+        
 def get_ssl_context():
     """Get SSL context for HTTPS if certificate and key exist."""
     cert_path = os.path.join('certs', 'certificate.pem')
@@ -506,13 +528,21 @@ def api_monitor():
         
     
 if __name__ == '__main__':
+    # Start log workers (4 workers by default - adjust based on your needs)
+    syslog_handler.start_log_worker(num_workers=4)
+    logger.info("Started log processing workers")
+    
     # Start syslog server in a separate thread
     syslog_thread = threading.Thread(
-        target=start_syslog_server,
+        target=syslog_handler.start_syslog_server,
         args=(sources,),
         daemon=True
     )
     syslog_thread.start()
+    logger.info("Started syslog server thread")
+    
+    # Give the servers a moment to initialize
+    time.sleep(1)
     
     # Start web server
     start_web_server()

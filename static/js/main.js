@@ -548,4 +548,74 @@ function fetchLogs() {
         
         sourcesTable.draw();
     }
+
+	// System performance monitoring
+	if ($('#cpuUsage').length > 0) {
+		// Initial load
+		updateSystemStats();
+		
+		// Set up periodic refresh (every 5 seconds)
+		setInterval(updateSystemStats, 5000);
+		
+		// Manual refresh button
+		$('#refreshStatsBtn').on('click', function() {
+			updateSystemStats();
+		});
+	}
+
+	// Function to update system stats
+	function updateSystemStats() {
+		$.ajax({
+			url: '/api/system_stats',
+			type: 'GET',
+			success: function(response) {
+				if (response.status === 'success') {
+					const stats = response.stats;
+					
+					// Update CPU usage
+					$('#cpuUsage').text(stats.cpu_percent.toFixed(1) + '%');
+					$('#cpuProgressBar').css('width', stats.cpu_percent + '%');
+					updateProgressBarColor($('#cpuProgressBar'), stats.cpu_percent);
+					
+					// Update memory usage
+					$('#memoryUsage').text(stats.memory_percent.toFixed(1) + '%');
+					$('#memoryProgressBar').css('width', stats.memory_percent + '%');
+					updateProgressBarColor($('#memoryProgressBar'), stats.memory_percent);
+					
+					// Update worker utilization
+					const workerUtil = stats.worker_stats.utilization;
+					$('#workerUtilization').text(
+						stats.worker_stats.active_workers + '/' + 
+						stats.worker_stats.max_workers + 
+						' (' + workerUtil.toFixed(1) + '%)'
+					);
+					$('#workerProgressBar').css('width', workerUtil + '%');
+					updateProgressBarColor($('#workerProgressBar'), workerUtil);
+					
+					// Update logs rate
+					$('#logsRate').text(stats.logs_rate.toFixed(1) + ' logs/sec');
+					$('#queueStatus').text('Queue: ' + stats.queue_stats.size + 
+										(stats.queue_stats.is_full ? ' (FULL)' : ''));
+					
+					if (stats.queue_stats.is_full) {
+						$('#queueStatus').addClass('text-danger');
+					} else {
+						$('#queueStatus').removeClass('text-danger');
+					}
+				}
+			}
+		});
+	}
+
+	// Function to update progress bar color based on value
+	function updateProgressBarColor(progressBar, value) {
+		if (value < 50) {
+			progressBar.removeClass('bg-warning bg-danger').addClass('bg-success');
+		} else if (value < 80) {
+			progressBar.removeClass('bg-success bg-danger').addClass('bg-warning');
+		} else {
+			progressBar.removeClass('bg-success bg-warning').addClass('bg-danger');
+		}
+	}
+
 });

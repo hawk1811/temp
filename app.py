@@ -12,6 +12,8 @@ import json
 import threading
 import logging
 import ssl
+from system_monitor import get_monitor
+from syslog_handler import get_system_metrics, queue_manager
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from flask_login import LoginManager, login_required, login_user, logout_user, current_user
@@ -127,6 +129,12 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+@app.route('/monitor')
+@login_required
+def monitor():
+    """Render the system monitoring dashboard."""
+    return render_template('monitor.html')
+    
 @app.route('/change_password', methods=['GET', 'POST'])
 @login_required
 def change_password():
@@ -315,7 +323,7 @@ def api_source(source_id):
     stats = get_source_stats({source_id: source_data})
     return jsonify({'status': 'success', 'source': stats.get(source_id, {})})
 
-# Exempt CSRF for API endpoints
+
 @csrf.exempt
 @app.route('/api/investigate/<source_id>', methods=['POST'])
 @login_required
@@ -328,12 +336,45 @@ def api_investigate(source_id):
     start_time = timerange.get('start')
     end_time = timerange.get('end')
     
+    # Get pagination parameters
+    page = int(timerange.get('page', 1))
+    page_size = int(timerange.get('page_size', 1000))
+    
+    # Validate pagination
+    if page < 1:
+        page = 1
+    if page_size < 1 or page_size > 5000:
+        page_size = 1000
+    
     if not start_time or not end_time:
         return jsonify({'status': 'error', 'message': 'Invalid time range'}), 400
     
     try:
-        log_data = parse_logs_for_timerange(source_id, start_time, end_time)
-        return jsonify({'status': 'success', 'data': log_data})
+        # Calculate effective max_results based on pagination
+        max_results = page * page_size
+        
+        # Get logs with streaming parser
+        log_data = parse_logs_for_timerange(source_id, start_time, end_time, max_results)
+        
+        # Apply pagination
+        total_count = len(log_data)
+        start_index = (page - 1) * page_size
+        end_index = min(start_index + page_size, total_count)
+        
+        paginated_data = log_data[start_index:end_index]
+        
+        # Return paginated results with metadata
+        return jsonify({
+            'status': 'success', 
+            'data': paginated_data,
+            'pagination': {
+                'page': page,
+                'page_size': page_size,
+                'total_count': total_count,
+                'total_pages': (total_count + page_size - 1) // page_size
+            },
+            'has_more': end_index < total_count
+        })
     except Exception as e:
         logger.error(f"Error processing logs: {str(e)}", exc_info=True)
         return jsonify({'status': 'error', 'message': f'Error processing logs: {str(e)}'}), 500
@@ -401,6 +442,69 @@ def start_web_server():
                 threads=threads
             )
 
+@csrf.exempt
+@app.route('/api/monitor')
+@login_required
+def api_monitor():
+    """API endpoint for monitoring data."""
+    try:
+        # Get metrics from the queue manager
+        queue_metrics = get_system_metrics()
+        
+        # Get system monitor metrics
+        sys_monitor = get_monitor()
+        system_metrics = sys_monitor.get_current_metrics()
+        history_metrics = sys_monitor.get_history_metrics()
+        
+        # Debug worker status
+        active_workers = 0
+        max_workers = 0
+        worker_status = []
+        
+        if queue_manager:
+            active_workers = queue_manager.active_workers
+            max_workers = queue_manager.max_workers
+            worker_status = [{"name": t.name, "alive": t.is_alive()} for t in queue_manager.workers]
+            logger.debug(f"Queue manager workers: active={active_workers}, total={len(queue_manager.workers)}")
+            logger.debug(f"Worker status: {worker_status}")
+        else:
+            logger.warning("Queue manager is not initialized")
+        
+        # Combine metrics for the response
+        response_data = {
+            # Current values
+            'current_eps': queue_metrics.get('current_eps', 0),
+            'cpu_usage': system_metrics.get('cpu_usage', 0),
+            'memory_usage': system_metrics.get('memory_usage', 0),
+            'queue_size': queue_metrics.get('queue_size', 0),
+            'queue_capacity': 200000,  # This should match the queue_size parameter in QueueManager
+            'active_workers': active_workers,
+            'max_workers': max_workers,
+            'messages_processed': queue_metrics.get('messages_processed', 0),
+            'worker_status': worker_status,
+            
+            # Historical data for charts
+            'eps_history': {
+                'timestamps': history_metrics.get('timestamp', []),
+                'values': history_metrics.get('eps', [])
+            },
+            'resource_history': {
+                'timestamps': history_metrics.get('timestamp', []),
+                'cpu': history_metrics.get('cpu_usage', []),
+                'memory': history_metrics.get('memory_usage', [])
+            }
+        }
+        
+        # Update EPS in system monitor
+        if 'current_eps' in queue_metrics:
+            sys_monitor.update_eps(queue_metrics['current_eps'])
+        
+        return jsonify({'status': 'success', 'data': response_data})
+    except Exception as e:
+        logger.error(f"Error getting monitoring data: {str(e)}", exc_info=True)
+        return jsonify({'status': 'error', 'message': f'Error retrieving monitoring data: {str(e)}'}), 500
+        
+    
 if __name__ == '__main__':
     # Start syslog server in a separate thread
     syslog_thread = threading.Thread(

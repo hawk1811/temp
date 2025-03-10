@@ -21,73 +21,43 @@ import re
 
 from config import Config
 from utils import check_memory_usage, is_ip_in_network
+from queue_manager import QueueManager
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Global source configuration
-global_sources = {}
-source_locks = {}  # For thread-safe access to source metadata
+# Global queue manager
+queue_manager = None
 
 class SyslogUDPHandler(socketserver.BaseRequestHandler):
     """
     UDP handler for syslog messages.
-    Processes incoming syslog messages and stores them in the appropriate files.
+    Processes incoming syslog messages and enqueues them for processing.
     """
     
     def handle(self):
         """Handle incoming syslog message."""
+        global queue_manager
+        
         try:
             # Get data and client address
             data = bytes.decode(self.request[0].strip(), 'utf-8')
             socket = self.request[1]
             client_address = self.client_address[0]
             
-            # Process the syslog message
-            self.process_syslog(client_address, data)
+            # Parse timestamp from syslog message
+            timestamp = self.extract_timestamp(data)
+            if not timestamp:
+                timestamp = datetime.now()
+            
+            # Enqueue the message for processing
+            if queue_manager:
+                queue_manager.enqueue_message(client_address, data, timestamp)
+            else:
+                logger.error("Queue manager not initialized, dropping message")
             
         except Exception as e:
             logger.error(f"Error handling syslog message: {str(e)}", exc_info=True)
-    
-    def process_syslog(self, client_ip, message):
-        """
-        Process a syslog message and store it in the appropriate file.
-        
-        Args:
-            client_ip (str): The IP address of the client sending the message
-            message (str): The syslog message content
-        """
-        # Skip if memory usage is too high
-        if check_memory_usage() > Config.MAX_MEMORY_USAGE:
-            logger.warning("Memory usage too high, dropping syslog message")
-            return
-        
-        # Parse timestamp from syslog message (RFC3164/RFC5424 formats)
-        timestamp = self.extract_timestamp(message)
-        if not timestamp:
-            timestamp = datetime.now()
-        
-        # Find matching source for this client IP
-        source_id = self.find_matching_source(client_ip)
-        if not source_id:
-            # No matching source found, store in default location
-            target_dir = os.path.join('logs', 'unknown')
-            os.makedirs(target_dir, exist_ok=True)
-            self.store_log(target_dir, timestamp, client_ip, message)
-            return
-        
-        # Get source configuration
-        source_config = global_sources.get(source_id, {})
-        target_dir = source_config.get('target_directory', os.path.join('logs', source_id))
-        
-        # Make sure target directory exists
-        os.makedirs(target_dir, exist_ok=True)
-        
-        # Store the log
-        log_filename = self.store_log(target_dir, timestamp, client_ip, message)
-        
-        # Update source metadata
-        self.update_source_metadata(source_id, timestamp, log_filename)
     
     def extract_timestamp(self, message):
         """
@@ -122,89 +92,6 @@ class SyslogUDPHandler(socketserver.BaseRequestHandler):
         
         # No timestamp found, return None
         return None
-    
-    def find_matching_source(self, client_ip):
-        """
-        Find the source configuration that matches the client IP.
-        
-        Args:
-            client_ip (str): The client IP address
-            
-        Returns:
-            str: The source ID or None if not found
-        """
-        for source_id, source_config in global_sources.items():
-            source_ips = source_config.get('source_ips', [])
-            for ip_entry in source_ips:
-                if is_ip_in_network(client_ip, ip_entry):
-                    return source_id
-        
-        return None
-    
-    def store_log(self, target_dir, timestamp, client_ip, message):
-        """
-        Store log message in a file.
-        
-        Args:
-            target_dir (str): The target directory
-            timestamp (datetime): The message timestamp
-            client_ip (str): The client IP address
-            message (str): The syslog message
-            
-        Returns:
-            str: The log filename
-        """
-        # Create filename based on timestamp
-        filename = f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{timestamp.microsecond:06d}.log"
-        filepath = os.path.join(target_dir, filename)
-        
-        # Store log with metadata
-        with open(filepath, 'w') as f:
-            f.write(f"Timestamp: {timestamp.isoformat()}\n")
-            f.write(f"Source IP: {client_ip}\n")
-            f.write(f"Message: {message}\n")
-        
-        return filename
-    
-    def update_source_metadata(self, source_id, timestamp, log_filename):
-        """
-        Update source metadata with new log entry.
-        
-        Args:
-            source_id (str): The source ID
-            timestamp (datetime): The message timestamp
-            log_filename (str): The log filename
-        """
-        # Acquire lock for this source
-        lock = source_locks.get(source_id)
-        if not lock:
-            lock = threading.Lock()
-            source_locks[source_id] = lock
-        
-        with lock:
-            # Load existing metadata
-            metadata_file = os.path.join('data', f'{source_id}.json')
-            metadata = []
-            
-            if os.path.exists(metadata_file):
-                try:
-                    with open(metadata_file, 'r') as f:
-                        metadata = json.load(f)
-                except json.JSONDecodeError:
-                    # If file is corrupted, start with empty metadata
-                    metadata = []
-            
-            # Add new log entry
-            target_dir = global_sources[source_id].get('target_directory', os.path.join('logs', source_id))
-            metadata.append({
-                'timestamp': timestamp.isoformat(),
-                'filename': log_filename,
-                'path': os.path.join(target_dir, log_filename)
-            })
-            
-            # Save metadata (append mode to handle large volumes)
-            with open(metadata_file, 'w') as f:
-                json.dump(metadata, f, indent=4)
 
 def start_syslog_server(sources):
     """
@@ -213,14 +100,39 @@ def start_syslog_server(sources):
     Args:
         sources (dict): The source configurations
     """
-    global global_sources
-    global_sources = sources
+    global queue_manager
+    
+    # Initialize queue manager with source configurations
+    # Calculate reasonable defaults based on system resources
+    import multiprocessing
+    cpu_count = multiprocessing.cpu_count()
+    
+    # Start with worker count based on CPUs, but cap based on expected load
+    min_workers = max(2, cpu_count // 2)  # At least 2 workers
+    max_workers = max(min_workers * 2, cpu_count * 2)  # Scale based on CPUs
+    
+    # Initialize the queue manager
+    logger.info(f"Initializing QueueManager with min_workers={min_workers}, max_workers={max_workers}")
+    queue_manager = QueueManager(
+        sources=sources,
+        max_workers=max_workers,
+        min_workers=min_workers,
+        queue_size=200000  # Buffer up to 200k messages (adjust based on memory)
+    )
     
     host = Config.SYSLOG_HOST
     port = Config.SYSLOG_PORT
     
     try:
-        server = socketserver.ThreadingUDPServer((host, port), SyslogUDPHandler)
+        # For high throughput, use a more efficient server
+        class SyslogUDPServer(socketserver.ThreadingUDPServer):
+            # Increase socket buffer size for high volume
+            def server_bind(self):
+                self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 8388608)  # 8MB buffer
+                self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                socketserver.ThreadingUDPServer.server_bind(self)
+        
+        server = SyslogUDPServer((host, port), SyslogUDPHandler)
         logger.info(f"Starting syslog server on {host}:{port}")
         server.serve_forever()
     except Exception as e:
@@ -239,43 +151,109 @@ def get_source_stats(sources):
     stats = {}
     
     for source_id, source_config in sources.items():
-        metadata_file = os.path.join('data', f'{source_id}.json')
+        # Look for date-based metadata
+        metadata_file = os.path.join('data', f'{source_id}_dates.json')
+        dates = []
         log_count = 0
         last_log_time = None
         
         if os.path.exists(metadata_file):
             try:
                 with open(metadata_file, 'r') as f:
-                    metadata = json.load(f)
+                    content = f.read()
+                    if not content.strip():
+                        # File exists but is empty, initialize with empty structure
+                        metadata = {"dates": [], "files": {}}
+                        with open(metadata_file, 'w') as f_write:
+                            json.dump(metadata, f_write, indent=2)
+                    else:
+                        metadata = json.loads(content)
                 
-                log_count = len(metadata)
+                # Handle different metadata formats
+                if isinstance(metadata, list):
+                    dates = metadata
+                    if dates:
+                        most_recent_date = dates[-1]
+                    else:
+                        most_recent_date = None
+                elif isinstance(metadata, dict):
+                    dates = metadata.get("dates", [])
+                    if dates:
+                        most_recent_date = dates[-1]
+                    else:
+                        most_recent_date = None
+                else:
+                    logger.warning(f"Unexpected metadata format for source {source_id}, initializing new format")
+                    metadata = {"dates": [], "files": {}}
+                    with open(metadata_file, 'w') as f_write:
+                        json.dump(metadata, f_write, indent=2)
+                    most_recent_date = None
                 
-                if metadata:
-                    # Sort by timestamp to find the most recent log
-                    sorted_metadata = sorted(metadata, key=lambda x: x.get('timestamp', ''), reverse=True)
-                    last_log_time = sorted_metadata[0].get('timestamp')
+                # If we have dates, calculate log count and last log time
+                if most_recent_date:
+                    # Get target directory
+                    target_dir = source_config.get('target_directory', os.path.join('logs', source_id))
+                    
+                    # Get all files for this date
+                    files_for_date = []
+                    if isinstance(metadata, dict) and "files" in metadata:
+                        files_for_date = metadata["files"].get(most_recent_date, [])
+                    
+                    if not files_for_date:
+                        files_for_date = [f"{most_recent_date}.json"]
+                    
+                    # Calculate total log count and find last log time
+                    for filename in files_for_date:
+                        log_file = os.path.join(target_dir, filename)
+                        
+                        if os.path.exists(log_file):
+                            try:
+                                with open(log_file, 'r') as f:
+                                    logs = json.load(f)
+                                    
+                                    # Count logs
+                                    log_count += len(logs)
+                                    
+                                    # Get last log time
+                                    if logs:
+                                        file_last_time = logs[-1]['timestamp']
+                                        if last_log_time is None or file_last_time > last_log_time:
+                                            last_log_time = file_last_time
+                            except Exception as e:
+                                logger.error(f"Error reading log file {log_file}: {str(e)}")
             except Exception as e:
-                logger.error(f"Error reading metadata for source {source_id}: {str(e)}")
+                logger.error(f"Error reading metadata for source {source_id}: {str(e)}", exc_info=True)
+                # Create empty metadata file with proper structure
+                metadata = {"dates": [], "files": {}}
+                try:
+                    with open(metadata_file, 'w') as f:
+                        json.dump(metadata, f, indent=2)
+                except Exception as write_error:
+                    logger.error(f"Failed to initialize metadata file: {str(write_error)}")
         
         # Create stats
         stats[source_id] = source_config.copy()
         stats[source_id]['log_count'] = log_count
         stats[source_id]['last_log_time'] = last_log_time
+        stats[source_id]['date_range'] = dates
     
     return stats
 
-def parse_logs_for_timerange(source_id, start_time, end_time):
+def parse_logs_for_timerange(source_id, start_time, end_time, max_results=1000):
     """
-    Parse logs for a specific source and time range.
+    Parse logs for a specific source and time range using streaming processing.
     
     Args:
         source_id (str): The source ID
         start_time (str): The start time in ISO format
         end_time (str): The end time in ISO format
+        max_results (int, optional): Maximum number of results to return
         
     Returns:
         list: The parsed log data
     """
+    import ijson  # Incremental JSON parser for streaming
+    
     # Parse time range
     try:
         start_dt = parser.parse(start_time)
@@ -284,48 +262,129 @@ def parse_logs_for_timerange(source_id, start_time, end_time):
         logger.error(f"Error parsing time range: {str(e)}")
         raise ValueError(f"Invalid time format: {str(e)}")
     
+    # Format dates for filename lookup
+    start_date = start_dt.date()
+    end_date = end_dt.date()
+    
     # Get metadata for this source
-    metadata_file = os.path.join('data', f'{source_id}.json')
+    metadata_file = os.path.join('data', f'{source_id}_dates.json')
     if not os.path.exists(metadata_file):
         return []
     
     try:
         with open(metadata_file, 'r') as f:
             metadata = json.load(f)
+            
+            # Handle metadata format (old or new)
+            if isinstance(metadata, list):
+                available_dates = metadata
+                file_mapping = {date_str: [f"{date_str}.json"] for date_str in metadata}
+            else:
+                available_dates = metadata.get("dates", [])
+                file_mapping = metadata.get("files", {})
     except Exception as e:
         logger.error(f"Error reading metadata: {str(e)}")
         raise ValueError(f"Error reading source data: {str(e)}")
     
-    # Filter logs by time range
-    logs_in_range = []
-    for log_entry in metadata:
-        log_time = parser.parse(log_entry.get('timestamp', ''))
-        if start_dt <= log_time <= end_dt:
-            logs_in_range.append(log_entry)
+    # Get source config to determine directory
+    sources_file = os.path.join('data', 'sources.json')
+    target_dir = os.path.join('logs', source_id)
     
-    # Read and parse log content for the filtered logs
-    parsed_logs = []
-    for log_entry in logs_in_range:
-        log_path = log_entry.get('path')
-        if not log_path or not os.path.exists(log_path):
-            continue
-        
+    try:
+        if os.path.exists(sources_file):
+            with open(sources_file, 'r') as f:
+                sources = json.load(f)
+                if source_id in sources:
+                    target_dir = sources[source_id].get('target_directory', target_dir)
+    except Exception as e:
+        logger.error(f"Error reading sources config: {str(e)}")
+    
+    # Find all dates in range
+    relevant_dates = []
+    for date_str in available_dates:
         try:
-            with open(log_path, 'r') as f:
-                log_content = f.read()
-            
-            # Parse log content
-            timestamp_match = re.search(r'Timestamp: (.*)', log_content)
-            source_ip_match = re.search(r'Source IP: (.*)', log_content)
-            message_match = re.search(r'Message: (.*)', log_content)
-            
-            parsed_logs.append({
-                'timestamp': timestamp_match.group(1) if timestamp_match else '',
-                'source_ip': source_ip_match.group(1) if source_ip_match else '',
-                'message': message_match.group(1) if message_match else '',
-                'filename': os.path.basename(log_path)
-            })
-        except Exception as e:
-            logger.error(f"Error parsing log file {log_path}: {str(e)}")
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            if start_date <= date <= end_date:
+                relevant_dates.append(date_str)
+        except ValueError:
+            logger.warning(f"Invalid date format in metadata: {date_str}")
     
-    return parsed_logs
+    # Read logs from each relevant date using streaming
+    all_logs = []
+    
+    for date_str in relevant_dates:
+        # Get all files for this date
+        date_files = file_mapping.get(date_str, [f"{date_str}.json"])
+        
+        for filename in date_files:
+            log_file = os.path.join(target_dir, filename)
+            
+            if not os.path.exists(log_file):
+                continue
+            
+            try:
+                # Use streaming JSON parser to avoid loading the entire file into memory
+                with open(log_file, 'rb') as f:
+                    # Stream the array items
+                    parser = ijson.items(f, 'item')
+                    
+                    for log in parser:
+                        try:
+                            log_time = parser.parse(log.get('timestamp', ''))
+                            
+                            # Filter by time range
+                            if start_dt <= log_time <= end_dt:
+                                # Format the log for display
+                                all_logs.append({
+                                    'timestamp': log.get('timestamp', ''),
+                                    'source_ip': log.get('source_ip', ''),
+                                    'message': log.get('message', ''),
+                                    'filename': filename
+                                })
+                                
+                                # Check if we've reached the result limit
+                                if len(all_logs) >= max_results:
+                                    logger.info(f"Result limit reached ({max_results}), stopping log collection")
+                                    break
+                                    
+                        except Exception as e:
+                            logger.warning(f"Error parsing log entry: {str(e)}")
+                            continue
+                    
+                    # Stop if we've reached the result limit
+                    if len(all_logs) >= max_results:
+                        break
+                        
+            except Exception as e:
+                logger.error(f"Error processing log file {log_file}: {str(e)}")
+        
+        # Stop if we've reached the result limit
+        if len(all_logs) >= max_results:
+            break
+    
+    # Sort logs by timestamp
+    all_logs.sort(key=lambda x: x.get('timestamp', ''))
+    
+    # Apply max results limit
+    return all_logs[:max_results]
+
+def get_system_metrics():
+    """
+    Get system performance metrics.
+    
+    Returns:
+        dict: System metrics including CPU, memory, and EPS rates
+    """
+    global queue_manager
+    
+    if queue_manager:
+        return queue_manager.get_metrics()
+    else:
+        return {
+            'queue_size': 0,
+            'messages_processed': 0,
+            'current_eps': 0,
+            'eps_history': [],
+            'cpu_usage': psutil.cpu_percent(),
+            'memory_usage': psutil.Process().memory_percent()
+        }

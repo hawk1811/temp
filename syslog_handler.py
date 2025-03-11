@@ -73,6 +73,27 @@ class QueueManager:
         self.last_count_time = time.time()
         self.message_count_interval = 0
 
+    def _find_matching_source(self, client_ip):
+        """
+        Find the source configuration that matches the client IP.
+        
+        Args:
+            client_ip (str): The client IP address
+            
+        Returns:
+            str: The source ID or None if not found
+        """
+        global global_sources
+        
+        for source_id, source_config in global_sources.items():
+            source_ips = source_config.get('source_ips', [])
+            for ip_entry in source_ips:
+                if is_ip_in_network(client_ip, ip_entry):
+                    return source_id
+        
+        # No matching source found
+        return None
+
     def start(self, num_workers=4):
         """Start processing workers"""
         self.running = True
@@ -128,7 +149,7 @@ class QueueManager:
 
                 try:
                     log_task = self.queue.get(timeout=timeout)
-                except Empty:  # Fixed incorrect reference to `queue.Empty`
+                except Empty:  # Use the correctly imported Empty
                     # Process any pending batches if timeout reached
                     current_time = time.time()
                     if current_time - last_process_time >= self.batch_timeout and (folder_batches or hec_batches):
@@ -145,14 +166,8 @@ class QueueManager:
 
                 # Mark task as done immediately
                 self.queue.task_done()
-                from queue_manager import QueueManager  # Ensure correct import
 
-                # Load global sources (modify this if sources are loaded differently)
-                global_sources = {}  # This should be populated from a valid config or DB
-
-                # Initialize QueueManager with correct arguments
-                queue_manager = QueueManager(sources=global_sources, max_workers=3, min_workers=1, queue_size=100000)
-                # Find matching source
+                # Find matching source using our method
                 source_id = self._find_matching_source(client_ip)
                 if not source_id:
                     logger.warning(f"Received syslog from undefined source IP: {client_ip}")
@@ -199,6 +214,89 @@ class QueueManager:
 
             except Exception as e:
                 logger.error(f"Error in worker: {str(e)}", exc_info=True)
+
+    def _process_batches(self, folder_batches, hec_batches):
+        """
+        Process batches of logs.
+        
+        Args:
+            folder_batches (dict): Batches of logs to save to folders
+            hec_batches (dict): Batches of logs to send to HEC endpoints
+        """
+        # Process folder batches
+        for (target_dir, hour_bucket), batch in folder_batches.items():
+            try:
+                # Ensure target directory exists
+                os.makedirs(target_dir, exist_ok=True)
+                
+                # Write to hourly log file
+                filepath = os.path.join(target_dir, f"{hour_bucket}.log")
+                
+                # Append logs to file
+                with open(filepath, 'a') as f:
+                    for log_entry, timestamp in batch:
+                        f.write(json.dumps(log_entry) + '\n')
+                        
+                        # Update index for source
+                        source_id = log_entry.get("source_id")
+                        log_id = log_entry.get("id")
+                        if source_id and log_id:
+                            update_background_index(source_id, timestamp, log_id)
+            
+            except Exception as e:
+                logger.error(f"Error writing batch to {target_dir}/{hour_bucket}.log: {str(e)}", exc_info=True)
+        
+        # Process HEC batches
+        for source_id, batch in hec_batches.items():
+            try:
+                # Get source configuration
+                source_config = global_sources.get(source_id, {})
+                hec_url = source_config.get('hec_url')
+                hec_token = source_config.get('hec_token')
+                
+                if not hec_url or not hec_token:
+                    logger.warning(f"Missing HEC configuration for source {source_id}")
+                    continue
+                
+                # Prepare payload for HEC
+                events = []
+                for log_entry, _ in batch:
+                    events.append({
+                        "event": log_entry.get("message"),
+                        "time": log_entry.get("timestamp"),
+                        "host": log_entry.get("source_ip"),
+                        "source": f"syslog:{source_id}",
+                        "sourcetype": "syslog" 
+                    })
+                
+                # Send to HEC endpoint
+                headers = {
+                    "Authorization": f"Splunk {hec_token}",
+                    "Content-Type": "application/json"
+                }
+                
+                # Split into smaller batches if needed
+                batch_size = 100  # Maximum events per request
+                for i in range(0, len(events), batch_size):
+                    batch_slice = events[i:i+batch_size]
+                    
+                    # Send request
+                    try:
+                        response = requests.post(
+                            hec_url,
+                            headers=headers,
+                            json={"events": batch_slice},
+                            timeout=10
+                        )
+                        
+                        if response.status_code != 200:
+                            logger.error(f"HEC error for source {source_id}: {response.status_code} - {response.text}")
+                        
+                    except Exception as e:
+                        logger.error(f"Error sending to HEC for source {source_id}: {str(e)}")
+            
+            except Exception as e:
+                logger.error(f"Error processing HEC batch for source {source_id}: {str(e)}", exc_info=True)
 
     def _auto_scale_workers(self):
         """Automatically scale workers based on queue size and system load."""

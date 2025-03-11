@@ -1,6 +1,6 @@
 /**
  * SyslogManager - Investigation JavaScript
- * Handles client-side functionality for the log investigation.
+ * Handles client-side functionality for log investigation.
  */
 
 $(document).ready(function() {
@@ -16,42 +16,18 @@ $(document).ready(function() {
         }
     });
 
-    // Pagination variables
-    let currentPage = 1;
-    let totalPages = 1;
-    let currentSearchParams = {};
-
     // Initialize DataTables
     const logsTable = $('#logsTable').DataTable({
         responsive: true,
         order: [[0, 'desc']], // Sort by timestamp descending
         pageLength: 25,
-        searching: true,
-        lengthChange: true,
+        dom: 'rtip', // Remove the default search box
         columns: [
             { data: 'timestamp' },
             { data: 'source_ip' },
             { data: 'message' },
             { data: 'filename' }
-        ],
-        columnDefs: [
-            {
-                // Truncate message column and add click handler
-                targets: 2,
-                render: function(data, type, row) {
-                    if (type === 'display') {
-                        // Truncate to 100 characters for display
-                        if (data.length > 100) {
-                            return '<span class="truncated-message" title="Click to view full message">' + 
-                                   data.substr(0, 100) + '...</span>';
-                        }
-                    }
-                    return data;
-                }
-            }
-        ],
-        dom: '<"row"<"col-md-6"l><"col-md-6"f>>rtip',
-        paging: false // We handle pagination separately
+        ]
     });
 
     // Initialize DateRangePicker
@@ -66,46 +42,29 @@ $(document).ready(function() {
         }
     });
 
-    // Check if a source ID was passed in the URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const sourceId = urlParams.get('source');
-    
-    if (sourceId) {
-        // Select the source in the dropdown
-        $('#sourceSelect').val(sourceId);
-        
-        // If a valid source was selected, trigger search
-        if ($('#sourceSelect').val() === sourceId) {
-            // A slight delay to make sure everything is initialized
-            setTimeout(() => {
-                $('#investigateForm').submit();
-            }, 500);
-        }
-    }
+    // Pagination variables
+    let currentPage = 1;
+    let totalPages = 1;
+    let currentSearchParams = {};
 
-    // Handle investigate form submission
+    // Handle investigation form submission
     $('#investigateForm').on('submit', function(e) {
         e.preventDefault();
         
-        // Form validation
-        if (this.checkValidity() === false) {
-            e.stopPropagation();
-            $(this).addClass('was-validated');
-            return;
-        }
-        
         const sourceId = $('#sourceSelect').val();
         const timeRange = $('#timeRange').data('daterangepicker');
-        const sourceName = $('#sourceSelect option:selected').text();
+        
+        if (!sourceId) {
+            alert('Please select a source to investigate');
+            return;
+        }
         
         const startTime = timeRange.startDate.format('YYYY-MM-DD HH:mm:ss');
         const endTime = timeRange.endDate.format('YYYY-MM-DD HH:mm:ss');
         
-        // Update UI
-        $('#currentSourceName').text(sourceName);
+        // Show source name and time range
+        $('#currentSourceName').text($('#sourceSelect option:selected').text());
         $('#currentTimeRange').text(startTime + ' to ' + endTime);
-        $('#noSourceSelected').hide();
-        $('#logsContainer').show();
         
         // Save search parameters for pagination
         currentSearchParams = {
@@ -118,72 +77,53 @@ $(document).ready(function() {
         // Reset pagination
         currentPage = 1;
         
+        // Show logs container and hide no source message
+        $('#logsContainer').show();
+        $('#noSourceSelected').hide();
+        
         // Show loading indicator
         logsTable.clear().draw();
         $('#logsTable tbody').html('<tr><td colspan="4" class="text-center">Loading logs...</td></tr>');
         $('#paginationControls').hide();
         
         // Fetch logs
-        fetchLogs();
+        fetchLogs(sourceId);
     });
-    
-    // Handle log message click to show details
-    $('#logsTable tbody').on('click', '.truncated-message', function() {
+
+    // Handle export logs button
+    $('#exportLogsBtn').on('click', function() {
+        exportLogs();
+    });
+
+    // Click handler for log message expansion
+    $('#logsTable tbody').on('click', 'td:nth-child(3)', function() {
         const tr = $(this).closest('tr');
-        const row = logsTable.row(tr).data();
+        const row = logsTable.row(tr);
+        const data = row.data();
         
-        // Populate and show modal
-        $('#detailTimestamp').text(moment(row.timestamp).format('YYYY-MM-DD HH:mm:ss'));
-        $('#detailSourceIP').text(row.source_ip);
-        $('#detailMessage').text(row.message);
-        $('#detailFilename').text(row.filename);
+        // Show log details in modal
+        $('#detailTimestamp').text(data.timestamp);
+        $('#detailSourceIP').text(data.source_ip);
+        $('#detailMessage').text(data.message);
+        $('#detailFilename').text(data.filename);
         
         $('#logDetailsModal').modal('show');
     });
+
+    // Check if a source parameter is in the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const preselectedSource = urlParams.get('source');
     
-    // Handle export logs button click
-    $('#exportLogsBtn').on('click', function() {
-        const sourceId = $('#sourceSelect').val();
-        const sourceName = $('#sourceSelect option:selected').text();
-        const timeRange = $('#timeRange').data('daterangepicker');
-        
-        // Get current search parameters
-        const exportParams = {
-            source_id: sourceId,
-            start: timeRange.startDate.format('YYYY-MM-DD HH:mm:ss'),
-            end: timeRange.endDate.format('YYYY-MM-DD HH:mm:ss'),
-            export: true
-        };
-        
-        // Create form and submit it for download
-        const form = $('<form></form>')
-            .attr('method', 'post')
-            .attr('action', '/api/export_logs');
-        
-        // Add CSRF token
-        $('<input>')
-            .attr('type', 'hidden')
-            .attr('name', 'csrf_token')
-            .attr('value', csrfToken)
-            .appendTo(form);
-        
-        // Add parameters
-        for (const key in exportParams) {
-            $('<input>')
-                .attr('type', 'hidden')
-                .attr('name', key)
-                .attr('value', exportParams[key])
-                .appendTo(form);
+    if (preselectedSource) {
+        $('#sourceSelect').val(preselectedSource);
+        // If there's a source selected, submit the form to load logs
+        if ($('#sourceSelect').val()) {
+            $('#investigateForm').submit();
         }
-        
-        // Submit form
-        form.appendTo('body').submit().remove();
-    });
+    }
 
     // Function to fetch logs with pagination
-    function fetchLogs() {
-        const sourceId = $('#sourceSelect').val();
-        
+    function fetchLogs(sourceId) {
         // Update page in params
         currentSearchParams.page = currentPage;
         
@@ -228,36 +168,36 @@ $(document).ready(function() {
 
     // Function to update pagination controls
     function updatePaginationControls(pagination) {
-        const totalPages = pagination.total_pages;
-        const currentPage = pagination.page;
+        const total_pages = pagination.total_pages;
+        const current_page = pagination.page;
         
         let paginationHtml = '<nav><ul class="pagination justify-content-center">';
         
         // Previous button
-        paginationHtml += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-            <a class="page-link" href="#" data-page="${currentPage - 1}">Previous</a>
+        paginationHtml += `<li class="page-item ${current_page === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" data-page="${current_page - 1}">Previous</a>
         </li>`;
         
         // Page numbers
-        const startPage = Math.max(1, currentPage - 2);
-        const endPage = Math.min(totalPages, startPage + 4);
+        const startPage = Math.max(1, current_page - 2);
+        const endPage = Math.min(total_pages, startPage + 4);
         
         for (let i = startPage; i <= endPage; i++) {
-            paginationHtml += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+            paginationHtml += `<li class="page-item ${i === current_page ? 'active' : ''}">
                 <a class="page-link" href="#" data-page="${i}">${i}</a>
             </li>`;
         }
         
         // Next button
-        paginationHtml += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-            <a class="page-link" href="#" data-page="${currentPage + 1}">Next</a>
+        paginationHtml += `<li class="page-item ${current_page === total_pages ? 'disabled' : ''}">
+            <a class="page-link" href="#" data-page="${current_page + 1}">Next</a>
         </li>`;
         
         paginationHtml += '</ul></nav>';
         
         // Add summary text
         paginationHtml += `<div class="text-center text-muted mt-2">
-            Showing page ${currentPage} of ${totalPages}
+            Showing page ${current_page} of ${total_pages}
             (${pagination.total_count} total logs)
         </div>`;
         
@@ -269,15 +209,42 @@ $(document).ready(function() {
             e.preventDefault();
             const page = parseInt($(this).data('page'));
             
-            if (page > 0 && page <= totalPages) {
+            if (page > 0 && page <= total_pages) {
                 currentPage = page;
-                fetchLogs();
-                
-                // Scroll to top of table
-                $('html, body').animate({
-                    scrollTop: $('#logsTable').offset().top - 20
-                }, 200);
+                fetchLogs($('#sourceSelect').val());
             }
         });
+    }
+
+    // Function to export logs
+    function exportLogs() {
+        const sourceId = $('#sourceSelect').val();
+        const timeRange = $('#timeRange').data('daterangepicker');
+        
+        if (!sourceId) {
+            alert('Please select a source to export');
+            return;
+        }
+        
+        const startTime = timeRange.startDate.format('YYYY-MM-DD HH:mm:ss');
+        const endTime = timeRange.endDate.format('YYYY-MM-DD HH:mm:ss');
+        
+        // Create a form and submit it to download the CSV
+        const form = $('<form></form>');
+        form.attr('method', 'post');
+        form.attr('action', '/api/export_logs');
+        
+        // Add CSRF token
+        form.append($('<input></input>').attr('type', 'hidden').attr('name', 'csrf_token').attr('value', csrfToken));
+        
+        // Add source ID
+        form.append($('<input></input>').attr('type', 'hidden').attr('name', 'source_id').attr('value', sourceId));
+        
+        // Add time range
+        form.append($('<input></input>').attr('type', 'hidden').attr('name', 'start').attr('value', startTime));
+        form.append($('<input></input>').attr('type', 'hidden').attr('name', 'end').attr('value', endTime));
+        
+        // Add to body, submit, and remove
+        form.appendTo('body').submit().remove();
     }
 });

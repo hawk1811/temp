@@ -42,6 +42,9 @@
 						<a class="nav-link {% if request.endpoint == 'certificates' %}active{% endif %}" href="{{ url_for('certificates') }}">SSL Certificates</a>
 					</li>
 					<li class="nav-item">
+						<a class="nav-link {% if request.endpoint == 'manage_event_logs' %}active{% endif %}" href="{{ url_for('manage_event_logs') }}">Event Logs</a>
+					</li>
+					<li class="nav-item">
 						<a class="nav-link {% if request.endpoint == 'change_password' %}active{% endif %}" href="{{ url_for('change_password') }}">Change Password</a>
 					</li>
 					<li class="nav-item">

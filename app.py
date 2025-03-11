@@ -15,6 +15,7 @@ import ssl
 import psutil
 import time
 import syslog_handler
+import event_logs
 from system_monitor import get_monitor
 from syslog_handler import get_system_metrics, queue_manager
 from datetime import datetime
@@ -30,6 +31,9 @@ from monitoring import get_monitoring_status, update_monitoring_config, start_mo
 from config import Config
 from auth import User, init_users, save_users
 from syslog_handler import start_syslog_server, get_source_stats, parse_logs_for_timerange
+from dateutil import parser
+from event_logs import init_event_logs_routes
+
 
 # Configure logging
 logging.basicConfig(
@@ -43,10 +47,20 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+
+
 # Initialize Flask application
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Initialize event logs routes
+init_event_logs_routes(app)
+
+# Print registered routes immediately
+print("Registered Routes at Startup:")
+for rule in app.url_map.iter_rules():
+    print(f"{rule.endpoint} -> {rule}")
+    
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
 
@@ -103,7 +117,8 @@ def index():
         if source.get('last_log_time'):
             try:
                 source['last_log_time_obj'] = parser.parse(source['last_log_time'])
-            except:
+            except Exception as e:
+                logger.error(f"Error parsing last log time: {e}")
                 source['last_log_time_obj'] = datetime.now()
         else:
             source['last_log_time_obj'] = None
@@ -170,7 +185,8 @@ def manage_sources():
         if source.get('last_log_time'):
             try:
                 source['last_log_time_obj'] = parser.parse(source['last_log_time'])
-            except:
+            except Exception as e:
+                logger.error(f"Error parsing last log time: {e}")
                 source['last_log_time_obj'] = datetime.now()
         else:
             source['last_log_time_obj'] = None
@@ -635,7 +651,19 @@ def api_monitor():
 # Import and initialize investigation routes
 from investigation import init_investigation_routes
 init_investigation_routes(app, sources)
-    
+
+
+
+# Initialize event logs routes
+#event_logs.init_event_logs_routes(app)
+
+# Log all registered routes before the first request
+@app.before_first_request
+def log_routes():
+    print("Registered Routes:")
+    for rule in app.url_map.iter_rules():
+        print(f"{rule.endpoint} -> {rule}")   
+        
 if __name__ == '__main__':
     # Start log workers (4 workers by default - adjust based on your needs)
     syslog_handler.start_log_worker(num_workers=4)

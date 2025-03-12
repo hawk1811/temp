@@ -47,13 +47,15 @@ $(document).ready(function() {
     $('#saveSourceBtn').on('click', function() {
         const targetType = $('#targetType').val();
         
-        // Base source data
-        const sourceData = {
-            id: $('#sourceId').val(),
-            name: $('#sourceName').val(),
-            target_type: targetType,
-            source_ips: JSON.parse($('#sourceIPsHidden').val() || '[]')
-        };
+		// Base source data
+		const sourceData = {
+			id: $('#sourceId').val(),
+			name: $('#sourceName').val(),
+			target_type: targetType,
+			protocol: $('#sourceProtocol').val(),
+			port: parseInt($('#sourcePort').val(), 10),
+			source_ips: JSON.parse($('#sourceIPsHidden').val() || '[]')
+		};
 
         // Add target-specific data
         if (targetType === 'folder') {
@@ -152,63 +154,64 @@ $(document).ready(function() {
         removeSourceIP(ip);
     });
 
-    // Handle edit source button click
-    $(document).on('click', '.edit-source-btn', function() {
-        const sourceId = $(this).data('source-id');
-        
-        // Fetch source data
-        $.ajax({
-            url: '/api/sources/' + sourceId,
-            type: 'GET',
-            success: function(response) {
-                if (response.status === 'success') {
-                    const source = response.source;
-                    
-                    // Reset form
-                    resetSourceForm();
-                    
-                    // Populate form
-                    $('#sourceId').val(sourceId);
-                    $('#sourceName').val(source.name);
-                    
-                    // Set target type and show appropriate settings
-                    $('#targetType').val(source.target_type || 'folder');
-                    
-                    if (source.target_type === 'hec') {
-                        $('#folderSettings').hide();
-                        $('#hecSettings').show();
-                        $('#hecUrl').val(source.hec_url || '');
-                        $('#hecToken').val(source.hec_token || '');
-                    } else {
-                        $('#folderSettings').show();
-                        $('#hecSettings').hide();
-                        $('#targetDirectory').val(source.target_directory || '');
-                    }
-                    
-                    // Add source IPs
-                    if (source.source_ips && Array.isArray(source.source_ips)) {
-                        source.source_ips.forEach(function(ip) {
-                            addSourceIP(ip);
-                        });
-                    }
-                    
-                    // Update modal title and show
-                    $('#addSourceModalLabel').text('Edit Syslog Source');
-                    $('#addSourceModal').modal('show');
-                } else {
-                    alert('Error: ' + response.message);
-                }
-            },
-            error: function(xhr) {
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    alert('Error: ' + response.message);
-                } catch (e) {
-                    alert('An error occurred while fetching the source data.');
-                }
-            }
-        });
-    });
+	// Handle edit source button click
+	$(document).on('click', '.edit-source-btn', function() {
+		const sourceId = $(this).data('source-id');
+		
+		// Fetch source data
+		$.ajax({
+			url: '/api/sources/' + sourceId,
+			type: 'GET',
+			success: function(response) {
+				if (response.status === 'success') {
+					const source = response.source;
+					
+					// Reset form
+					resetSourceForm();
+					
+					// Populate form
+					$('#sourceId').val(sourceId);
+					$('#sourceName').val(source.name);
+					
+					// Set target type and show appropriate settings
+					const targetType = source.target_type || 'folder';
+					$('#targetType').val(targetType);
+					
+					if (targetType === 'hec') {
+						$('#folderSettings').hide();
+						$('#hecSettings').show();
+						$('#hecUrl').val(source.hec_url || '');
+						$('#hecToken').val(source.hec_token || '');
+					} else {
+						$('#folderSettings').show();
+						$('#hecSettings').hide();
+						$('#targetDirectory').val(source.target_directory || '');
+					}
+					
+					// Add source IPs
+					if (source.source_ips && Array.isArray(source.source_ips)) {
+						source.source_ips.forEach(function(ip) {
+							addSourceIP(ip);
+						});
+					}
+					
+					// Update modal title and show
+					$('#addSourceModalLabel').text('Edit Syslog Source');
+					$('#addSourceModal').modal('show');
+				} else {
+					alert('Error: ' + response.message);
+				}
+			},
+			error: function(xhr) {
+				try {
+					const response = JSON.parse(xhr.responseText);
+					alert('Error: ' + response.message);
+				} catch (e) {
+					alert('An error occurred while fetching the source data.');
+				}
+			}
+		});
+	});
 
     // Handle delete source button click
     $(document).on('click', '.delete-source-btn', function() {

@@ -45,11 +45,18 @@ class MonitoringConfig:
                 with open(config_path, 'r') as f:
                     config = json.load(f)
                 
+                # Explicitly update all fields
                 self.enabled = config.get('enabled', False)
                 self.hec_url = config.get('hec_url', "")
                 self.hec_token = config.get('hec_token', "")
                 self.interval = config.get('interval', 60)
                 self.metrics = config.get('metrics', ["cpu", "memory", "eps", "disk"])
+                
+                # If enabled, we should start monitoring
+                if self.enabled and not self.monitor_thread:
+                    self.start_monitoring()
+                    
+                logger.info(f"Loaded monitoring configuration: enabled={self.enabled}, interval={self.interval}s")
             except Exception as e:
                 logger.error(f"Error loading monitoring configuration: {str(e)}")
     
@@ -191,27 +198,32 @@ class MonitoringConfig:
         return metrics
     
     def _send_heartbeat(self, metrics):
-        """Send heartbeat to HEC endpoint."""
+        """Send heartbeat to HEC endpoint using the new format."""
         if not self.hec_url or not self.hec_token:
             logger.warning("HEC URL or token not configured, skipping heartbeat")
             return
         
         try:
-            headers = {
-                "Authorization": f"Splunk {self.hec_token}",
-                "Content-Type": "application/json"
+            # Format the metrics data for HEC
+            hec_data = {
+                "time": time.time(),
+                "event": metrics,  # Put all metrics inside the "event" key as JSON
+                "source": f"syslog_manager:heartbeat:{self.hostname}"
             }
             
-            payload = {
-                "event": metrics,
-                "source": "syslog_manager",
-                "sourcetype": "syslog_manager:heartbeat"
+            # Serialize to JSON string
+            data_str = json.dumps(hec_data)
+            
+            # Use requests instead of curl (Python's way to make HTTP requests)
+            headers = {
+                "Authorization": f"Bearer {self.hec_token}",
+                "Content-Type": "text/plain; charset=utf-8"
             }
             
             response = requests.post(
                 self.hec_url,
+                data=data_str,
                 headers=headers,
-                json=payload,
                 timeout=10
             )
             
@@ -245,7 +257,10 @@ def update_monitoring_config(config):
 def start_monitoring():
     """Start monitoring if enabled."""
     if monitoring_config.enabled:
+        logger.info("Starting monitoring service as it is enabled in configuration")
         monitoring_config.start_monitoring()
+    else:
+        logger.info("Monitoring service is disabled in configuration")
 
 def stop_monitoring():
     """Stop monitoring."""

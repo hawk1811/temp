@@ -47,20 +47,30 @@ def init_event_logs_routes(app):
     
     @app.route('/api/event_logs/clear', methods=['POST'])
     @login_required
-    def api_clear_event_logs():
-        """API endpoint for clearing event logs."""
+    def clear_event_log_file():
+        """Clear the application event log file."""
+        log_file = 'syslog_manager.log'
+        
         try:
-            clear_event_log_file()
-            return jsonify({
-                'status': 'success',
-                'message': 'Event logs cleared successfully'
-            })
+            # Create a backup before clearing
+            backup_file = f"{log_file}.bak"
+            if os.path.exists(backup_file):
+                os.remove(backup_file)
+            
+            if os.path.exists(log_file):
+                # Copy current log to backup
+                with open(log_file, 'r') as src, open(backup_file, 'w') as dst:
+                    dst.write(src.read())
+            
+            # Create/truncate log file
+            with open(log_file, 'w') as f:
+                pass
+            
+            logger.info("Event log file cleared")
+            return True
         except Exception as e:
-            logger.error(f"Error clearing event logs: {str(e)}")
-            return jsonify({
-                'status': 'error',
-                'message': f'Error clearing event logs: {str(e)}'
-            }), 500
+            logger.error(f"Error clearing log file: {str(e)}", exc_info=True)
+            raise
 
 def parse_event_log_file():
     """

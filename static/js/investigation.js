@@ -1,35 +1,9 @@
 /**
  * SyslogManager - Investigation JavaScript
- * Handles client-side functionality for log investigation.
+ * Handles client-side functionality for the log investigation.
  */
 
 $(document).ready(function() {
-    // Setup CSRF token for all AJAX requests
-    const csrfToken = $('meta[name="csrf-token"]').attr('content');
-    
-    // Add CSRF token to all AJAX requests
-    $.ajaxSetup({
-        beforeSend: function(xhr, settings) {
-            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-                xhr.setRequestHeader("X-CSRFToken", csrfToken);
-            }
-        }
-    });
-
-    // Initialize DataTables
-    const logsTable = $('#logsTable').DataTable({
-        responsive: true,
-        order: [[0, 'desc']], // Sort by timestamp descending
-        pageLength: 25,
-        dom: 'rtip', // Remove the default search box
-        columns: [
-            { data: 'timestamp' },
-            { data: 'source_ip' },
-            { data: 'message' },
-            { data: 'filename' }
-        ]
-    });
-
     // Initialize DateRangePicker
     $('#timeRange').daterangepicker({
         timePicker: true,
@@ -41,108 +15,166 @@ $(document).ready(function() {
             format: 'YYYY-MM-DD HH:mm:ss'
         }
     });
-
-    // Pagination variables
-    let currentPage = 1;
-    let totalPages = 1;
-    let currentSearchParams = {};
-
-    // Handle investigation form submission
+    
+    // Set source if provided in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const sourceParam = urlParams.get('source');
+    if (sourceParam) {
+        $('#sourceSelect').val(sourceParam);
+    }
+    
+    // Initialize DataTables with explicit column definitions
+    const logsTable = $('#logsTable').DataTable({
+        responsive: true,
+        ordering: true,
+        searching: true,
+        paging: false, // We're handling pagination manually
+        columns: [
+            { data: 'timestamp', title: 'Timestamp' },
+            { data: 'source_ip', title: 'Source IP' },
+            { data: 'message', title: 'Message' },
+            { data: 'filename', title: 'Filename' }
+        ],
+        order: [[0, 'desc']] // Sort by timestamp descending
+    });
+    
+    // Handle form submission
     $('#investigateForm').on('submit', function(e) {
         e.preventDefault();
         
-        const sourceId = $('#sourceSelect').val();
-        const timeRange = $('#timeRange').data('daterangepicker');
-        
-        if (!sourceId) {
-            alert('Please select a source to investigate');
+        // Validate form
+        if (!$('#sourceSelect').val()) {
+            alert('Please select a source to investigate.');
             return;
         }
         
+        // Get source ID and time range
+        const sourceId = $('#sourceSelect').val();
+        const sourceName = $('#sourceSelect option:selected').text();
+        const timeRange = $('#timeRange').data('daterangepicker');
         const startTime = timeRange.startDate.format('YYYY-MM-DD HH:mm:ss');
         const endTime = timeRange.endDate.format('YYYY-MM-DD HH:mm:ss');
         
-        // Show source name and time range
-        $('#currentSourceName').text($('#sourceSelect option:selected').text());
+        // Update UI
+        $('#currentSourceName').text(sourceName);
         $('#currentTimeRange').text(startTime + ' to ' + endTime);
         
-        // Save search parameters for pagination
-        currentSearchParams = {
-            start: startTime,
-            end: endTime,
-            page: 1,  // Reset to first page for new searches
-            page_size: 25  // Match the DataTable page size
-        };
-        
-        // Reset pagination
-        currentPage = 1;
-        
-        // Show logs container and hide no source message
+        // Show loading indicator
+        $('#logsTable tbody').html('<tr><td colspan="4" class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>');
         $('#logsContainer').show();
         $('#noSourceSelected').hide();
         
-        // Show loading indicator
-        logsTable.clear().draw();
-        $('#logsTable tbody').html('<tr><td colspan="4" class="text-center">Loading logs...</td></tr>');
-        $('#paginationControls').hide();
+        // Store search parameters for pagination
+        window.currentSearchParams = {
+            source_id: sourceId,
+            start: startTime,
+            end: endTime,
+            page: 1,
+            page_size: 25
+        };
         
         // Fetch logs
-        fetchLogs(sourceId);
+        fetchLogs();
     });
-
-    // Handle export logs button
-    $('#exportLogsBtn').on('click', function() {
-        exportLogs();
-    });
-
-    // Click handler for log message expansion
-    $('#logsTable tbody').on('click', 'td:nth-child(3)', function() {
-        const tr = $(this).closest('tr');
-        const row = logsTable.row(tr);
-        const data = row.data();
-        
-        // Show log details in modal
-        $('#detailTimestamp').text(data.timestamp);
-        $('#detailSourceIP').text(data.source_ip);
-        $('#detailMessage').text(data.message);
-        $('#detailFilename').text(data.filename);
-        
-        $('#logDetailsModal').modal('show');
-    });
-
-    // Check if a source parameter is in the URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const preselectedSource = urlParams.get('source');
     
-    if (preselectedSource) {
-        $('#sourceSelect').val(preselectedSource);
-        // If there's a source selected, submit the form to load logs
-        if ($('#sourceSelect').val()) {
-            $('#investigateForm').submit();
+    // Handle log row click to show details
+    $('#logsTable tbody').on('click', 'tr', function() {
+        const data = logsTable.row(this).data();
+        if (data) {
+            // Populate modal
+            $('#detailTimestamp').text(data.timestamp);
+            $('#detailSourceIP').text(data.source_ip);
+            $('#detailMessage').text(data.message);
+            $('#detailFilename').text(data.filename);
+            
+            // Show modal
+            $('#logDetailsModal').modal('show');
         }
-    }
-
+    });
+    
+    // Handle pagination click
+    $(document).on('click', '.page-link', function(e) {
+        e.preventDefault();
+        
+        const page = parseInt($(this).data('page'));
+        if (page > 0 && page <= window.totalPages) {
+            window.currentSearchParams.page = page;
+            fetchLogs();
+        }
+    });
+    
+    // Handle export button click
+    $('#exportLogsBtn').on('click', function() {
+        if (!window.currentSearchParams) {
+            alert('Please search for logs first.');
+            return;
+        }
+        
+        // Create form for export
+        const form = $('<form></form>')
+            .attr('method', 'post')
+            .attr('action', '/api/export_logs');
+        
+        // Add CSRF token
+        $('<input>')
+            .attr('type', 'hidden')
+            .attr('name', 'csrf_token')
+            .attr('value', $('meta[name="csrf-token"]').attr('content'))
+            .appendTo(form);
+        
+        // Add parameters
+        $('<input>')
+            .attr('type', 'hidden')
+            .attr('name', 'source_id')
+            .attr('value', window.currentSearchParams.source_id)
+            .appendTo(form);
+        
+        $('<input>')
+            .attr('type', 'hidden')
+            .attr('name', 'start')
+            .attr('value', window.currentSearchParams.start)
+            .appendTo(form);
+        
+        $('<input>')
+            .attr('type', 'hidden')
+            .attr('name', 'end')
+            .attr('value', window.currentSearchParams.end)
+            .appendTo(form);
+        
+        // Append form to body and submit
+        form.appendTo('body').submit().remove();
+    });
+    
     // Function to fetch logs with pagination
-    function fetchLogs(sourceId) {
-        // Update page in params
-        currentSearchParams.page = currentPage;
+    function fetchLogs() {
+        const params = window.currentSearchParams;
+        
+        if (!params) {
+            return;
+        }
         
         $.ajax({
-            url: '/api/investigate/' + sourceId,
+            url: '/api/investigate/' + params.source_id,
             type: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify(currentSearchParams),
+            data: JSON.stringify({
+                start: params.start,
+                end: params.end,
+                page: params.page,
+                page_size: params.page_size
+            }),
             success: function(response) {
                 if (response.status === 'success') {
-                    // Load data into DataTable
+                    // Clear existing data
                     logsTable.clear();
                     
-                    if (response.data.length > 0) {
+                    if (response.data && response.data.length > 0) {
+                        // Add data and draw
                         logsTable.rows.add(response.data).draw();
                         
-                        // Update pagination information
+                        // Update pagination
                         if (response.pagination) {
-                            totalPages = response.pagination.total_pages;
+                            window.totalPages = response.pagination.total_pages;
                             updatePaginationControls(response.pagination);
                         }
                     } else {
@@ -150,101 +182,61 @@ $(document).ready(function() {
                         $('#paginationControls').hide();
                     }
                 } else {
-                    alert('Error: ' + response.message);
+                    $('#logsTable tbody').html('<tr><td colspan="4" class="text-center">Error: ' + response.message + '</td></tr>');
+                    $('#paginationControls').hide();
                 }
             },
             error: function(xhr) {
                 try {
                     const response = JSON.parse(xhr.responseText);
-                    alert('Error: ' + response.message);
+                    $('#logsTable tbody').html('<tr><td colspan="4" class="text-center">Error: ' + response.message + '</td></tr>');
                 } catch (e) {
-                    alert('An error occurred while fetching logs.');
+                    $('#logsTable tbody').html('<tr><td colspan="4" class="text-center">An error occurred while fetching logs.</td></tr>');
                 }
-                $('#logsTable tbody').html('<tr><td colspan="4" class="text-center">Error loading logs.</td></tr>');
                 $('#paginationControls').hide();
             }
         });
     }
-
+    
     // Function to update pagination controls
     function updatePaginationControls(pagination) {
-        const total_pages = pagination.total_pages;
-        const current_page = pagination.page;
+        const totalPages = pagination.total_pages;
+        const currentPage = pagination.page;
         
-        let paginationHtml = '<nav><ul class="pagination justify-content-center">';
-        
-        // Previous button
-        paginationHtml += `<li class="page-item ${current_page === 1 ? 'disabled' : ''}">
-            <a class="page-link" href="#" data-page="${current_page - 1}">Previous</a>
-        </li>`;
-        
-        // Page numbers
-        const startPage = Math.max(1, current_page - 2);
-        const endPage = Math.min(total_pages, startPage + 4);
-        
-        for (let i = startPage; i <= endPage; i++) {
-            paginationHtml += `<li class="page-item ${i === current_page ? 'active' : ''}">
-                <a class="page-link" href="#" data-page="${i}">${i}</a>
-            </li>`;
-        }
-        
-        // Next button
-        paginationHtml += `<li class="page-item ${current_page === total_pages ? 'disabled' : ''}">
-            <a class="page-link" href="#" data-page="${current_page + 1}">Next</a>
-        </li>`;
-        
-        paginationHtml += '</ul></nav>';
-        
-        // Add summary text
-        paginationHtml += `<div class="text-center text-muted mt-2">
-            Showing page ${current_page} of ${total_pages}
-            (${pagination.total_count} total logs)
-        </div>`;
-        
-        // Update pagination controls
-        $('#paginationControls').html(paginationHtml).show();
-        
-        // Add click handlers to pagination links
-        $('.page-link').on('click', function(e) {
-            e.preventDefault();
-            const page = parseInt($(this).data('page'));
-            
-            if (page > 0 && page <= total_pages) {
-                currentPage = page;
-                fetchLogs($('#sourceSelect').val());
-            }
-        });
-    }
-
-    // Function to export logs
-    function exportLogs() {
-        const sourceId = $('#sourceSelect').val();
-        const timeRange = $('#timeRange').data('daterangepicker');
-        
-        if (!sourceId) {
-            alert('Please select a source to export');
+        if (totalPages <= 1) {
+            $('#paginationControls').hide();
             return;
         }
         
-        const startTime = timeRange.startDate.format('YYYY-MM-DD HH:mm:ss');
-        const endTime = timeRange.endDate.format('YYYY-MM-DD HH:mm:ss');
+        let paginationHtml = '<nav><ul class="pagination justify-content-center">';
         
-        // Create a form and submit it to download the CSV
-        const form = $('<form></form>');
-        form.attr('method', 'post');
-        form.attr('action', '/api/export_logs');
-        
-        // Add CSRF token
-        form.append($('<input></input>').attr('type', 'hidden').attr('name', 'csrf_token').attr('value', csrfToken));
-        
-        // Add source ID
-        form.append($('<input></input>').attr('type', 'hidden').attr('name', 'source_id').attr('value', sourceId));
-        
-        // Add time range
-        form.append($('<input></input>').attr('type', 'hidden').attr('name', 'start').attr('value', startTime));
-        form.append($('<input></input>').attr('type', 'hidden').attr('name', 'end').attr('value', endTime));
-        
-        // Add to body, submit, and remove
-        form.appendTo('body').submit().remove();
-    }
-});
+// Previous button
+paginationHtml += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+    <a class="page-link" href="#" data-page="${currentPage - 1}">Previous</a>
+</li>`;
+
+// Page numbers
+const startPage = Math.max(1, currentPage - 2);
+const endPage = Math.min(totalPages, startPage + 4);
+
+for (let i = startPage; i <= endPage; i++) {
+    paginationHtml += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+        <a class="page-link" href="#" data-page="${i}">${i}</a>
+    </li>`;
+}
+
+// Next button
+paginationHtml += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+    <a class="page-link" href="#" data-page="${currentPage + 1}">Next</a>
+</li>`;
+
+paginationHtml += '</ul></nav>';
+
+// Add summary text
+paginationHtml += `<div class="text-center text-muted mt-2">
+    Showing page ${currentPage} of ${totalPages}
+    (${pagination.total_count} total logs)
+</div>`;
+
+// Update pagination controls
+$('#paginationControls').html(paginationHtml).show();

@@ -78,6 +78,7 @@ login_manager.login_view = 'login'
 os.makedirs('data', exist_ok=True)
 os.makedirs('logs', exist_ok=True)
 os.makedirs('certs', exist_ok=True)
+os.makedirs(os.path.join('data', 'hec_failures'), exist_ok=True)
 
 # Initialize users
 users = init_users()
@@ -303,26 +304,33 @@ def api_monitoring_test():
         # Get current metrics
         metrics = mc._collect_metrics()
         
+        # Format the metrics data for HEC
+        hec_data = {
+            "time": time.time(),
+            "event": metrics,  # Put all metrics inside the "event" key as JSON
+            "source": f"syslog_manager:heartbeat:{mc.hostname}"
+        }
+        
         # If HEC is configured, try to send a test heartbeat
         if mc.hec_url and mc.hec_token:
+            # Use the updated _send_heartbeat method
             mc._send_heartbeat(metrics)
             return jsonify({
                 'status': 'success',
                 'message': 'Test heartbeat sent successfully',
-                'data': metrics
+                'data': hec_data  # Return the formatted data
             })
         else:
             return jsonify({
                 'status': 'error',
                 'message': 'HEC URL or token not configured',
-                'data': metrics
+                'data': hec_data  # Return the formatted data anyway
             }), 400
     except Exception as e:
         logger.error(f"Error testing monitoring heartbeat: {str(e)}", exc_info=True)
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
-# Exempt CSRF for API sources endpoint
 @csrf.exempt
 @app.route('/api/sources', methods=['GET', 'POST'])
 @login_required
@@ -345,6 +353,15 @@ def api_sources():
             # Validate source data
             if not source_data.get('name'):
                 return jsonify({'status': 'error', 'message': 'Source name is required'}), 400
+            
+            # Validate protocol and port
+            protocol = source_data.get('protocol', 'udp').lower()
+            if protocol not in ['udp', 'tcp']:
+                return jsonify({'status': 'error', 'message': 'Protocol must be UDP or TCP'}), 400
+                
+            port = source_data.get('port', 514)
+            if not isinstance(port, int) or port < 1 or port > 65535:
+                return jsonify({'status': 'error', 'message': 'Port must be a number between 1 and 65535'}), 400
             
             # Check target type and validate accordingly
             target_type = source_data.get('target_type', 'folder')
@@ -405,7 +422,17 @@ def api_sources():
                     logger.info(f"Creating JSON file: {source_json_path}")
                     with open(source_json_path, 'w') as f:
                         json.dump([], f)
-                
+
+                    # Create empty index file for this source
+                    index_file_path = os.path.join('data', f'{new_id}_index.json')
+                    logger.info(f"Creating index file: {index_file_path}")
+                    with open(index_file_path, 'w') as f:
+                        json.dump({
+                            "buckets": {},
+                            "last_log": None,
+                            "total_count": 0
+                        }, f)           
+                        
                 # Save sources configuration
                 logger.info("Saving sources configuration")
                 save_sources(sources)
@@ -427,7 +454,6 @@ def api_sources():
         logger.error(f"Error getting source stats: {str(e)}", exc_info=True)
         return jsonify({'status': 'error', 'message': f'Error retrieving sources: {str(e)}'}), 500
         
-# Exempt CSRF for API endpoints
 @csrf.exempt
 @app.route('/api/sources/<source_id>', methods=['GET', 'DELETE'])
 @login_required
@@ -443,10 +469,9 @@ def api_source(source_id):
         save_sources(sources)
         return jsonify({'status': 'success'})
     
-    # GET request - return specific source with stats
-    source_data = sources[source_id]
-    stats = get_source_stats({source_id: source_data})
-    return jsonify({'status': 'success', 'source': stats.get(source_id, {})})
+    # GET request - return specific source
+    source_data = sources[source_id].copy()
+    return jsonify({'status': 'success', 'source': source_data})
 
 
 @csrf.exempt
@@ -463,12 +488,14 @@ def api_investigate(source_id):
     
     # Get pagination parameters
     page = int(timerange.get('page', 1))
-    page_size = int(timerange.get('page_size', 1000))
+    page_size = int(timerange.get('page_size', 25))
     
     # Validate pagination
     if page < 1:
         page = 1
-    if page_size < 1 or page_size > 5000:
+    if page_size < 1:
+        page_size = 25
+    if page_size > 1000:  # Limit maximum page size
         page_size = 1000
     
     if not start_time or not end_time:
@@ -496,7 +523,7 @@ def api_investigate(source_id):
                 'page': page,
                 'page_size': page_size,
                 'total_count': total_count,
-                'total_pages': (total_count + page_size - 1) // page_size
+                'total_pages': (total_count + page_size - 1) // page_size if page_size > 0 else 1
             },
             'has_more': end_index < total_count
         })
